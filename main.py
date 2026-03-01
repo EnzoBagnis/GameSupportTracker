@@ -267,7 +267,9 @@ class ArchipelagoTracker(tk.Tk):
         self._all_games      = {}
         self._poptracker_set = set()
         self._releases       = {}
-        self._github_token   = load_settings().get("github_token", "")
+        _s = load_settings()
+        self._github_token    = _s.get("github_token", "")
+        self._check_releases  = _s.get("check_releases", False)
         self._filter_var     = tk.StringVar()
         self._tab_var        = tk.StringVar(value="Playable Worlds")
         self._status_filter  = tk.StringVar(value="All")
@@ -624,7 +626,7 @@ class ArchipelagoTracker(tk.Tk):
             # GitHub release fetch — only for Playable Worlds
             old_tab_rels = old_releases.get(tab_name, {})
             new_tab_rels = {}
-            if tab_name != "Core Verified" and not rate_limited:
+            if tab_name != "Core Verified" and not rate_limited and self._check_releases:
                 total = len(current)
                 for idx, (game_name, game_data) in enumerate(current.items()):
                     self._set_status(
@@ -916,8 +918,22 @@ class ArchipelagoTracker(tk.Tk):
         tk.Label(pad, text="PARAMÈTRES", bg=BG, fg=ACCENT2,
                  font=("Courier New", 11, "bold")).pack(anchor="w", pady=(0, 16))
 
-        # ── GitHub Token ──────────────────────────────────────────────────
+        # ── Releases ──────────────────────────────────────────────────────
         tk.Frame(pad, bg=BORDER, height=1).pack(fill="x", pady=(0, 12))
+
+        releases_var = tk.BooleanVar(value=self._check_releases)
+        rel_row = tk.Frame(pad, bg=BG)
+        rel_row.pack(fill="x", pady=(0, 4))
+        tk.Checkbutton(rel_row, text="Vérifier les releases GitHub lors du check",
+                       variable=releases_var,
+                       bg=BG, fg=TEXT, selectcolor=BG3,
+                       activebackground=BG, activeforeground=TEXT,
+                       font=("Courier New", 9, "bold")).pack(side="left")
+        tk.Label(pad,
+                 text="Effectue un appel API GitHub par jeu (~400 requêtes). Désactivé par défaut.\n"
+                      "Recommandé : activer uniquement avec un token configuré ci-dessous.",
+                 bg=BG, fg=TEXT_DIM, font=("Courier New", 8),
+                 justify="left").pack(anchor="w", pady=(0, 10))
 
         tk.Label(pad, text="GitHub Personal Access Token",
                  bg=BG, fg=TEXT, font=("Courier New", 9, "bold")).pack(anchor="w")
@@ -962,9 +978,11 @@ class ArchipelagoTracker(tk.Tk):
         btn_row.pack(fill="x")
 
         def _save():
-            self._github_token = token_var.get().strip()
+            self._github_token   = token_var.get().strip()
+            self._check_releases = releases_var.get()
             s = load_settings()
-            s["github_token"] = self._github_token
+            s["github_token"]   = self._github_token
+            s["check_releases"] = self._check_releases
             save_settings(s)
             win.destroy()
 
