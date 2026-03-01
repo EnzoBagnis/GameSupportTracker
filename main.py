@@ -26,6 +26,10 @@ POPTRACKER_API = (
     "&cmlimit=500&format=json"
 )
 
+GITHUB_REPO_RE = re.compile(
+    r'https?://github\.com/([^/\s]+)/([^/\s#?]+?)(?:\.git)?(?:/[^\s]*)?(?:\s|$)'
+)
+
 def get_cache_path():
     if os.name == "nt":
         base = os.path.join(os.environ.get("APPDATA", os.path.expanduser("~")),
@@ -53,7 +57,6 @@ STATUS_COLORS = {
     "Merged":         "#34d399",
 }
 
-# Ordre de tri des statuts (index = priorité, 0 = premier)
 STATUS_ORDER = {
     "Merged":         0,
     "In Review":      1,
@@ -72,16 +75,42 @@ def fetch_tab(tab_name, gid):
     return list(csv.reader(io.StringIO(r.content.decode("utf-8"))))
 
 def rows_to_dict(rows):
+    if not rows:
+        return {}
+
+    # ── Detect column indices from header row ─────────────────────────────
+    header = [c.strip().lower() for c in rows[0]]
+
+    def _col(*keywords):
+        """Return index of first column whose header contains all keywords."""
+        for i, h in enumerate(header):
+            if all(k in h for k in keywords):
+                return i
+        return -1
+
+    idx_name    = 0
+    idx_status  = _col("status") if _col("status") != -1 else 1
+    idx_notes   = _col("notes")  if _col("notes")  != -1 else 2
+    # "Where can you get the APWorld and Client?" — try several heuristics
+    idx_apworld = _col("apworld")
+    if idx_apworld == -1:
+        idx_apworld = _col("where", "get")
+    if idx_apworld == -1:
+        idx_apworld = _col("client")
+
     result = {}
     for row in rows[1:]:
-        if len(row) < 2:
-            continue
-        name   = row[0].strip()
-        status = row[1].strip() if len(row) > 1 else ""
-        notes  = row[2].strip() if len(row) > 2 else ""
+        def _get(i):
+            return row[i].strip() if i != -1 and i < len(row) else ""
+
+        name    = _get(idx_name)
+        status  = _get(idx_status)
+        notes   = _get(idx_notes)
+        apworld = _get(idx_apworld)
+
         if not name or name in SKIP_NAMES:
             continue
-        result[name] = {"status": status, "notes": notes}
+        result[name] = {"status": status, "notes": notes, "apworld": apworld}
     return result
 
 URL_PATTERN = re.compile(r'https?://\S+')
@@ -89,18 +118,61 @@ URL_PATTERN = re.compile(r'https?://\S+')
 def extract_urls(text):
     return URL_PATTERN.findall(text)
 
+def extract_github_repo(notes, apworld=""):
+    """Extracts (owner, repo) from GitHub URLs in notes or apworld column."""
+    for text in (apworld, notes):   # apworld column takes priority
+        if not text:
+            continue
+        for url in extract_urls(text):
+            m = GITHUB_REPO_RE.match(url + " ")
+            if m:
+                owner = m.group(1)
+                repo  = m.group(2).split("/")[0]
+                return owner, repo
+    return None
+
+def fetch_github_release(owner, repo):
+    """Returns {tag, date, url} for the latest release, or None."""
+    try:
+        api_url = f"https://api.github.com/repos/{owner}/{repo}/releases/latest"
+        headers = {
+            "User-Agent": "ArchipelagoTracker/1.0",
+            "Accept":     "application/vnd.github+json",
+        }
+        r = requests.get(api_url, timeout=10, headers=headers)
+        if r.status_code == 404:
+            # No releases page — try tags
+            r2 = requests.get(
+                f"https://api.github.com/repos/{owner}/{repo}/tags",
+                timeout=10, headers=headers)
+            if r2.status_code == 200:
+                tags = r2.json()
+                if tags:
+                    return {"tag": tags[0].get("name", ""), "date": "", "url": ""}
+            return None
+        if r.status_code != 200:
+            return None
+        data     = r.json()
+        raw_date = data.get("published_at", "")
+        return {
+            "tag":  data.get("tag_name", ""),
+            "date": raw_date[:10] if raw_date else "",
+            "url":  data.get("html_url", ""),
+        }
+    except Exception:
+        return None
+
 def fetch_poptracker_games():
     try:
         headers = {"User-Agent": "ArchipelagoTracker/1.0"}
         r = requests.get(POPTRACKER_API, timeout=15, headers=headers)
         if r.status_code != 200:
             return set()
-        data = r.json()
+        data    = r.json()
         members = data.get("query", {}).get("categorymembers", [])
-        names = set()
+        names   = set()
         for m in members:
-            title = m.get("title", "")
-            names.add(_normalize(title))
+            names.add(_normalize(m.get("title", "")))
         return names
     except Exception:
         return set()
@@ -145,12 +217,12 @@ TEXT_DIM  = "#64748b"
 BORDER    = "#30363d"
 GREEN     = "#4ade80"
 RED       = "#f87171"
+YELLOW    = "#fbbf24"
 
-# Icônes de tri
 SORT_ICONS = {
-    None: " -",   # neutre
-    True: " ↑",   # ascendant
-    False: " ↓",  # descendant
+    None:  " -",
+    True:  " ↑",
+    False: " ↓",
 }
 
 class ArchipelagoTracker(tk.Tk):
@@ -173,16 +245,16 @@ class ArchipelagoTracker(tk.Tk):
         self._changes        = []
         self._all_games      = {}
         self._poptracker_set = set()
+        # {tab_name: {game_name: {"tag": str, "date": str, "url": str}}}
+        self._releases       = {}
         self._filter_var     = tk.StringVar()
         self._tab_var        = tk.StringVar(value="Playable Worlds")
         self._status_filter  = tk.StringVar(value="All")
         self._pt_filter      = tk.StringVar(value="All")
         self._checking       = False
 
-        # Tri: None = défaut (alpha), True = ascendant, False = descendant
-        # On stocke par colonne: "game", "status", "poptracker"
-        self._sort_col   = None   # colonne active (None = défaut)
-        self._sort_asc   = None   # True/False/None
+        self._sort_col = None
+        self._sort_asc = None
 
         self._build_ui()
         self.after(200, self._load_initial)
@@ -320,7 +392,6 @@ class ArchipelagoTracker(tk.Tk):
         self._tree = ttk.Treeview(table_frame, columns=cols,
                                    show="headings", style="Custom.Treeview")
 
-        # Headings avec icône de tri — cliquables
         self._tree.heading("game",       text="Jeu" + SORT_ICONS[None],
                            anchor="w",
                            command=lambda: self._on_sort_click("game"))
@@ -330,7 +401,7 @@ class ArchipelagoTracker(tk.Tk):
         self._tree.heading("poptracker", text="PopTracker" + SORT_ICONS[None],
                            anchor="w",
                            command=lambda: self._on_sort_click("poptracker"))
-        self._tree.heading("notes",      text="Notes",      anchor="w")
+        self._tree.heading("notes",      text="Notes", anchor="w")
 
         self._tree.column("game",       width=240, minwidth=140)
         self._tree.column("status",     width=120, minwidth=90)
@@ -343,20 +414,25 @@ class ArchipelagoTracker(tk.Tk):
         self._tree.pack(side="left", fill="both", expand=True)
         vsb.pack(side="right", fill="y")
 
+        # Playable Worlds: status-colored rows
         for status, color in STATUS_COLORS.items():
             self._tree.tag_configure(status, foreground=color)
         self._tree.tag_configure("Other", foreground=TEXT_DIM)
         self._tree.tag_configure("new",   background="#1a2e1a")
-        # Tags PopTracker colorés (pour Core Verified)
-        self._tree.tag_configure("pt_yes", foreground=GREEN)
-        self._tree.tag_configure("pt_no",  foreground=RED)
+        # Core Verified: neutral row color, PT cell visually stands out
+        # ttk doesn't support per-cell color; we use a neutral TEXT row so the
+        # hidden status column doesn't bleed color, and rely on the PT text
+        # value (YES/NO) itself for clarity. A post-draw Canvas overlay would
+        # be needed for true per-cell color — not implemented to keep it simple.
+        self._tree.tag_configure("core_yes", foreground=GREEN)
+        self._tree.tag_configure("core_no",  foreground=RED)
 
         self._tree.bind("<<TreeviewSelect>>", self._on_row_select)
 
         # ── Detail Panel ─────────────────────────────────────────────────────
         tk.Frame(right, bg=BORDER, height=1).pack(fill="x")
 
-        detail = tk.Frame(right, bg=BG2, height=160)
+        detail = tk.Frame(right, bg=BG2, height=170)
         detail.pack(fill="x")
         detail.pack_propagate(False)
 
@@ -377,6 +453,16 @@ class ArchipelagoTracker(tk.Tk):
                                    font=("Courier New", 9), anchor="e")
         self._detail_pt.pack(side="right")
 
+        # Release row — shown below the title bar
+        detail_rel = tk.Frame(detail, bg=BG2, padx=14, pady=2)
+        detail_rel.pack(fill="x")
+        tk.Label(detail_rel, text="📦 Release:", bg=BG2, fg=TEXT_DIM,
+                 font=("Courier New", 9), width=12, anchor="w").pack(side="left")
+        self._detail_release = tk.Label(detail_rel, text="—", bg=BG2,
+                                        fg=TEXT_DIM, font=("Courier New", 9),
+                                        anchor="w")
+        self._detail_release.pack(side="left")
+
         self._detail_notes = tk.Label(detail, text="", bg=BG2, fg=TEXT_DIM,
                                       font=("Courier New", 9), anchor="w",
                                       justify="left", wraplength=700, padx=14)
@@ -387,8 +473,6 @@ class ArchipelagoTracker(tk.Tk):
 
     # ── Tab Change ────────────────────────────────────────────────────────────
     def _on_tab_change(self):
-        """Change d'onglet : adapte les colonnes visibles et rafraîchit."""
-        # Reset du tri pour éviter confusion entre onglets
         self._sort_col = None
         self._sort_asc = None
         self._update_heading_icons()
@@ -396,10 +480,8 @@ class ArchipelagoTracker(tk.Tk):
         self._refresh_table()
 
     def _apply_columns(self):
-        """Affiche/masque la colonne 'status' selon l'onglet actif."""
         is_core = self._tab_var.get() == "Core Verified"
         if is_core:
-            # Masque 'status', élargit 'game' et 'notes'
             self._tree.column("status", width=0, minwidth=0, stretch=False)
             self._tree.heading("status", text="")
             self._tree.column("game",   width=280, minwidth=140)
@@ -413,12 +495,9 @@ class ArchipelagoTracker(tk.Tk):
 
     # ── Sort Logic ────────────────────────────────────────────────────────────
     def _on_sort_click(self, col):
-        """Cycle: défaut → ascendant → descendant → défaut → ..."""
-        # Ignore le tri statut pour Core Verified (colonne masquée)
         if col == "status" and self._tab_var.get() == "Core Verified":
             return
         if self._sort_col != col:
-            # Nouvelle colonne : reset les autres, démarre en ascendant
             self._sort_col = col
             self._sort_asc = True
         else:
@@ -430,42 +509,28 @@ class ArchipelagoTracker(tk.Tk):
             else:
                 self._sort_asc = True
                 self._sort_col = col
-
         self._update_heading_icons()
         self._refresh_table()
 
     def _update_heading_icons(self):
-        """Met à jour les icônes dans les en-têtes."""
         is_core = self._tab_var.get() == "Core Verified"
-        cols_labels = {
-            "game":       "Jeu",
-            "poptracker": "PopTracker",
-        }
+        cols_labels = {"game": "Jeu", "poptracker": "PopTracker"}
         if not is_core:
             cols_labels["status"] = "Statut"
         for col, label in cols_labels.items():
-            if self._sort_col == col:
-                icon = SORT_ICONS[self._sort_asc]
-            else:
-                icon = SORT_ICONS[None]
+            icon = SORT_ICONS[self._sort_asc] if self._sort_col == col else SORT_ICONS[None]
             self._tree.heading(col, text=label + icon)
 
     def _sort_key(self, item):
-        """Retourne la clé de tri pour un item (name, data, has_pt)."""
         name, data, has_pt = item
         col = self._sort_col
-
         if col == "game":
             return name.lower()
         elif col == "status":
-            status = data.get("status", "")
-            return (STATUS_ORDER.get(status, 99), name.lower())
+            return (STATUS_ORDER.get(data.get("status", ""), 99), name.lower())
         elif col == "poptracker":
-            # ✅ avant ❌ en ascendant
             return (0 if has_pt else 1, name.lower())
-        else:
-            # Défaut : alphabétique
-            return name.lower()
+        return name.lower()
 
     # ── Mouse wheel ───────────────────────────────────────────────────────────
     def _on_mousewheel_changes(self, event):
@@ -478,13 +543,15 @@ class ArchipelagoTracker(tk.Tk):
         if cache:
             self._all_games      = cache
             self._poptracker_set = set(cache.get("_poptracker", []))
+            self._releases       = cache.get("_releases", {})
             self._refresh_table()
             ts = cache.get("_timestamp", "")
             if ts:
                 self._last_check_lbl.config(text=f"Dernier check: {ts}")
             total = sum(len(v) for k, v in cache.items()
-                        if k not in ("_timestamp", "_poptracker"))
-            self._set_status(f"Cache chargé — {total} jeux · {len(self._poptracker_set)} avec PopTracker")
+                        if k not in ("_timestamp", "_poptracker", "_releases"))
+            self._set_status(
+                f"Cache chargé — {total} jeux · {len(self._poptracker_set)} avec PopTracker")
         else:
             self._set_status("Aucun cache — Cliquez sur Vérifier !")
 
@@ -497,15 +564,19 @@ class ArchipelagoTracker(tk.Tk):
         threading.Thread(target=self._do_check, daemon=True).start()
 
     def _do_check(self):
-        cache    = load_cache()
+        cache     = load_cache()
         new_cache = {"_timestamp": datetime.now().strftime("%Y-%m-%d %H:%M")}
-        changes  = []
+        changes   = []
+        old_releases = cache.get("_releases", {})
+        new_releases = {}
 
+        # ── Google Sheets + GitHub releases ───────────────────────────────
         for tab_name, gid in TABS.items():
             self._set_status(f"Récupération: {tab_name}...")
             rows = fetch_tab(tab_name, gid)
             if not rows:
-                new_cache[tab_name] = cache.get(tab_name, {})
+                new_cache[tab_name]    = cache.get(tab_name, {})
+                new_releases[tab_name] = old_releases.get(tab_name, {})
                 continue
 
             current = rows_to_dict(rows)
@@ -513,6 +584,7 @@ class ArchipelagoTracker(tk.Tk):
             if isinstance(old, dict) and "_timestamp" in old:
                 old = {}
 
+            # Sheet changes
             added    = {k: v for k, v in current.items() if k not in old}
             removed  = {k: v for k, v in old.items()     if k not in current}
             modified = {}
@@ -522,14 +594,51 @@ class ArchipelagoTracker(tk.Tk):
                         modified[k] = (old[k].get("status", "?"), current[k]["status"])
 
             for game, data in added.items():
-                changes.append(("➕", tab_name, game, data["status"], "Ajouté"))
+                changes.append(("➕", tab_name, game, data["status"], "Ajouté", ""))
             for game in removed:
-                changes.append(("➖", tab_name, game, "", "Retiré"))
+                changes.append(("➖", tab_name, game, "", "Retiré", ""))
             for game, (before, after) in modified.items():
-                changes.append(("🔄", tab_name, game, after, f"{before} → {after}"))
+                changes.append(("🔄", tab_name, game, after, f"{before} → {after}", ""))
 
             new_cache[tab_name] = current
 
+            # GitHub release fetch — only for Playable Worlds
+            old_tab_rels = old_releases.get(tab_name, {})
+            new_tab_rels = {}
+            if tab_name != "Core Verified":
+                total = len(current)
+                for idx, (game_name, game_data) in enumerate(current.items()):
+                    self._set_status(
+                        f"Releases {tab_name}: {idx+1}/{total} — {game_name[:28]}...")
+                    notes   = game_data.get("notes",   "")
+                    apworld = game_data.get("apworld", "")
+                    repo    = extract_github_repo(notes, apworld)
+                    if not repo:
+                        if game_name in old_tab_rels:
+                            new_tab_rels[game_name] = old_tab_rels[game_name]
+                        continue
+                    owner, repo_name = repo
+                    release = fetch_github_release(owner, repo_name)
+                    if not release:
+                        if game_name in old_tab_rels:
+                            new_tab_rels[game_name] = old_tab_rels[game_name]
+                        continue
+                    new_tab_rels[game_name] = release
+                    # Detect any new release published (tag differs from cached)
+                    old_tag = old_tab_rels.get(game_name, {}).get("tag", "")
+                    new_tag = release.get("tag", "")
+                    if new_tag and new_tag != old_tag:
+                        desc = (f"Release: {old_tag} → {new_tag}"
+                                if old_tag else f"Nouvelle release: {new_tag}")
+                        changes.append((
+                            "🏷️", tab_name, game_name, "",
+                            desc,
+                            release.get("url", ""),
+                        ))
+
+            new_releases[tab_name] = new_tab_rels
+
+        # ── PopTracker Wiki ────────────────────────────────────────────────
         self._set_status("Récupération: PopTracker Wiki...")
         pt_set = fetch_poptracker_games()
         if pt_set:
@@ -539,10 +648,11 @@ class ArchipelagoTracker(tk.Tk):
             self._poptracker_set = set(cache.get("_poptracker", []))
             new_cache["_poptracker"] = list(self._poptracker_set)
 
+        new_cache["_releases"] = new_releases
+        self._releases         = new_releases
         save_cache(new_cache)
         self._all_games = new_cache
         self._changes   = changes
-
         self.after(0, self._on_check_done)
 
     def _on_check_done(self):
@@ -552,9 +662,9 @@ class ArchipelagoTracker(tk.Tk):
         self._last_check_lbl.config(text=f"Dernier check: {ts}")
         self._refresh_table()
         self._refresh_changes()
-        n = len(self._changes)
+        n  = len(self._changes)
         pt = len(self._poptracker_set)
-        self._set_status(f"✓ Check terminé — {n} changement(s) · {pt} jeux avec PopTracker")
+        self._set_status(f"✓ Check terminé — {n} changement(s)")
 
     # ── Refresh Changes Panel ─────────────────────────────────────────────────
     def _refresh_changes(self):
@@ -567,7 +677,14 @@ class ArchipelagoTracker(tk.Tk):
                      padx=14, pady=10).pack(anchor="w")
             return
 
-        for icon, tab, game, status, desc in self._changes:
+        for entry in self._changes:
+            icon    = entry[0]
+            tab     = entry[1]
+            game    = entry[2]
+            status  = entry[3]
+            desc    = entry[4]
+            rel_url = entry[5] if len(entry) > 5 else ""
+
             row = tk.Frame(self._changes_inner, bg=BG2, pady=6, padx=14)
             row.pack(fill="x")
             top_row = tk.Frame(row, bg=BG2)
@@ -579,9 +696,14 @@ class ArchipelagoTracker(tk.Tk):
                      wraplength=280, justify="left").pack(side="left")
             bot_row = tk.Frame(row, bg=BG2)
             bot_row.pack(fill="x")
-            color = STATUS_COLORS.get(status, TEXT_DIM)
+            color = YELLOW if icon == "🏷️" else STATUS_COLORS.get(status, TEXT_DIM)
             tk.Label(bot_row, text=f"   {tab} — {desc}",
                      bg=BG2, fg=color, font=("Courier New", 8)).pack(side="left")
+            if rel_url:
+                lnk = tk.Label(bot_row, text=" ↗", bg=BG2, fg=ACCENT2,
+                               font=("Courier New", 8, "underline"), cursor="hand2")
+                lnk.pack(side="left")
+                lnk.bind("<Button-1>", lambda e, u=rel_url: webbrowser.open(u))
             tk.Frame(self._changes_inner, bg=BORDER, height=1).pack(fill="x", padx=14)
 
     # ── Refresh Games Table ───────────────────────────────────────────────────
@@ -594,12 +716,12 @@ class ArchipelagoTracker(tk.Tk):
         if not isinstance(games, dict):
             return
 
-        query    = self._filter_var.get().lower()
-        sf       = self._status_filter.get()
-        pt_filt  = self._pt_filter.get()
-        new_names = {g for icon, t, g, *_ in self._changes if icon == "➕" and t == tab}
+        query     = self._filter_var.get().lower()
+        sf        = self._status_filter.get()
+        pt_filt   = self._pt_filter.get()
+        new_names = {e[2] for e in self._changes if e[0] == "➕" and e[1] == tab}
+        is_core   = tab == "Core Verified"
 
-        # Construire la liste filtrée
         filtered = []
         for name, data in games.items():
             if not isinstance(data, dict):
@@ -622,31 +744,24 @@ class ArchipelagoTracker(tk.Tk):
 
             filtered.append((name, data, has_pt))
 
-        # Trier
         if self._sort_col is not None:
-            filtered.sort(
-                key=self._sort_key,
-                reverse=(self._sort_asc is False)
-            )
+            filtered.sort(key=self._sort_key, reverse=(self._sort_asc is False))
         else:
-            # Défaut : alphabétique ascendant
             filtered.sort(key=lambda x: x[0].lower())
 
-        # Insérer dans le Treeview
-        is_core = tab == "Core Verified"
         for name, data, has_pt in filtered:
             status = data.get("status", "")
             notes  = data.get("notes",  "")
             pt_txt = "YES" if has_pt else "NO"
 
             if is_core:
-                # Couleur sur la colonne PopTracker, pas de couleur statut
-                pt_tag = "pt_yes" if has_pt else "pt_no"
-                tags   = [pt_tag] + (["new"] if name in new_names else [])
+                # Color whole row green/red — ttk can't color individual cells
+                # without a Canvas overlay, so we accept the row-level color.
+                row_tag = "core_yes" if has_pt else "core_no"
             else:
-                tag  = status if status in STATUS_COLORS else "Other"
-                tags = [tag] + (["new"] if name in new_names else [])
+                row_tag = status if status in STATUS_COLORS else "Other"
 
+            tags = [row_tag] + (["new"] if name in new_names else [])
             self._tree.insert("", "end",
                               values=(name, status, pt_txt, notes),
                               tags=tags)
@@ -662,23 +777,45 @@ class ArchipelagoTracker(tk.Tk):
         if not values or len(values) < 4:
             return
         name, status, pt_txt, notes = values[0], values[1], values[2], values[3]
+        tab = self._tab_var.get()
 
         self._detail_title.config(text=name, fg=TEXT)
         color = STATUS_COLORS.get(status, TEXT_DIM)
-        self._detail_status.config(text=f"● {status}", fg=color)
+        self._detail_status.config(
+            text=f"● {status}" if status else "", fg=color)
 
         has_pt = match_poptracker(name, self._poptracker_set)
         if has_pt:
             wiki_url = "https://archipelago.miraheze.org/wiki/" + \
                        name.replace(" ", "_")
-            self._detail_pt.config(
-                text=" PopTracker: YES",
-                fg=GREEN, cursor="hand2")
+            self._detail_pt.config(text=" PopTracker: YES", fg=GREEN, cursor="hand2")
             self._detail_pt.bind("<Button-1>",
                 lambda e, u=wiki_url: webbrowser.open(u))
         else:
             self._detail_pt.config(text=" PopTracker: NO", fg=RED, cursor="")
             self._detail_pt.unbind("<Button-1>")
+
+        # ── Release info ──────────────────────────────────────────────────
+        self._detail_release.unbind("<Button-1>")
+        rel = self._releases.get(tab, {}).get(name)
+        if rel and rel.get("tag"):
+            tag_str  = rel["tag"]
+            date_str = rel.get("date", "")
+            rel_url  = rel.get("url", "")
+            label    = f"{tag_str}  —  {date_str}" if date_str else tag_str
+            if rel_url:
+                self._detail_release.config(
+                    text=label + "  ↗", fg=ACCENT2,
+                    font=("Courier New", 9, "underline"), cursor="hand2")
+                self._detail_release.bind("<Button-1>",
+                    lambda e, u=rel_url: webbrowser.open(u))
+            else:
+                self._detail_release.config(
+                    text=label, fg=YELLOW,
+                    font=("Courier New", 9), cursor="")
+        else:
+            self._detail_release.config(
+                text="—", fg=TEXT_DIM, font=("Courier New", 9), cursor="")
 
         labeled_links, plain_text = self._parse_notes(notes)
         self._detail_notes.config(text=plain_text if plain_text else "")
