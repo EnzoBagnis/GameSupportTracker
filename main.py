@@ -53,6 +53,16 @@ STATUS_COLORS = {
     "Merged":         "#34d399",
 }
 
+# Ordre de tri des statuts (index = priorité, 0 = premier)
+STATUS_ORDER = {
+    "Merged":         0,
+    "In Review":      1,
+    "Stable":         2,
+    "Unstable":       3,
+    "Broken on Main": 4,
+    "APWorld Only":   5,
+}
+
 # ── DATA LOGIC ────────────────────────────────────────────────────────────────
 def fetch_tab(tab_name, gid):
     url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={gid}"
@@ -80,10 +90,6 @@ def extract_urls(text):
     return URL_PATTERN.findall(text)
 
 def fetch_poptracker_games():
-    """
-    Récupère la liste des jeux avec PopTracker depuis le wiki Archipelago.
-    Retourne un set de noms normalisés (lowercase, sans ponctuation).
-    """
     try:
         headers = {"User-Agent": "ArchipelagoTracker/1.0"}
         r = requests.get(POPTRACKER_API, timeout=15, headers=headers)
@@ -91,7 +97,6 @@ def fetch_poptracker_games():
             return set()
         data = r.json()
         members = data.get("query", {}).get("categorymembers", [])
-        # Normalise les noms : lowercase, retire les underscores et tirets
         names = set()
         for m in members:
             title = m.get("title", "")
@@ -101,27 +106,21 @@ def fetch_poptracker_games():
         return set()
 
 def _normalize(name):
-    """Normalise un nom de jeu pour la comparaison floue."""
     n = name.lower()
-    # Retire préfixes wiki inutiles
     for prefix in ["category:", "game:"]:
         if n.startswith(prefix):
             n = n[len(prefix):]
-    # Retire ponctuation et espaces superflus
     n = re.sub(r"[:\-_'\"!.,&()]", " ", n)
     n = re.sub(r"\s+", " ", n).strip()
     return n
 
 def match_poptracker(game_name, poptracker_set):
-    """Cherche si un jeu a un PopTracker en comparaison floue."""
     norm = _normalize(game_name)
-    # Correspondance exacte
     if norm in poptracker_set:
         return True
-    # Correspondance partielle (le nom du jeu est contenu dans un nom wiki)
     for pt in poptracker_set:
         if norm in pt or pt in norm:
-            if len(norm) > 4 and len(pt) > 4:  # évite les faux positifs courts
+            if len(norm) > 4 and len(pt) > 4:
                 return True
     return False
 
@@ -147,6 +146,13 @@ BORDER    = "#30363d"
 GREEN     = "#4ade80"
 RED       = "#f87171"
 
+# Icônes de tri
+SORT_ICONS = {
+    None: " -",   # neutre
+    True: " ↑",   # ascendant
+    False: " ↓",  # descendant
+}
+
 class ArchipelagoTracker(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -155,7 +161,6 @@ class ArchipelagoTracker(tk.Tk):
         self.minsize(900, 600)
         self.configure(bg=BG)
 
-        # Icône fenêtre
         try:
             if getattr(sys, 'frozen', False):
                 icon_path = os.path.join(sys._MEIPASS, "logo.ico")
@@ -167,12 +172,17 @@ class ArchipelagoTracker(tk.Tk):
 
         self._changes        = []
         self._all_games      = {}
-        self._poptracker_set = set()   # noms normalisés des jeux avec PopTracker
+        self._poptracker_set = set()
         self._filter_var     = tk.StringVar()
         self._tab_var        = tk.StringVar(value="Playable Worlds")
         self._status_filter  = tk.StringVar(value="All")
-        self._pt_filter      = tk.StringVar(value="All")   # filtre PopTracker
+        self._pt_filter      = tk.StringVar(value="All")
         self._checking       = False
+
+        # Tri: None = défaut (alpha), True = ascendant, False = descendant
+        # On stocke par colonne: "game", "status", "poptracker"
+        self._sort_col   = None   # colonne active (None = défaut)
+        self._sort_asc   = None   # True/False/None
 
         self._build_ui()
         self.after(200, self._load_initial)
@@ -274,11 +284,10 @@ class ArchipelagoTracker(tk.Tk):
                      font=("Courier New", 9)).pack(side="left")
         self._status_filter.trace_add("write", lambda *a: self._refresh_table())
 
-        # Filtre PopTracker
         tk.Label(fbar, text="  PopTracker:", bg=BG3, fg=TEXT_DIM,
                  font=("Courier New", 9)).pack(side="left", padx=(12, 4))
         ttk.Combobox(fbar, textvariable=self._pt_filter,
-                     values=["All", "✅ Disponible", "❌ Non disponible"],
+                     values=["All", " Disponible", " Non disponible"],
                      state="readonly", width=16,
                      font=("Courier New", 9)).pack(side="left")
         self._pt_filter.trace_add("write", lambda *a: self._refresh_table())
@@ -303,14 +312,26 @@ class ArchipelagoTracker(tk.Tk):
         style.map("Custom.Treeview",
                   background=[("selected", ACCENT)],
                   foreground=[("selected", "white")])
+        style.map("Custom.Treeview.Heading",
+                  background=[("active", ACCENT)],
+                  foreground=[("active", "white")])
 
         cols = ("game", "status", "poptracker", "notes")
         self._tree = ttk.Treeview(table_frame, columns=cols,
                                    show="headings", style="Custom.Treeview")
-        self._tree.heading("game",       text="Jeu",        anchor="w")
-        self._tree.heading("status",     text="Statut",     anchor="w")
-        self._tree.heading("poptracker", text="PopTracker", anchor="w")
+
+        # Headings avec icône de tri — cliquables
+        self._tree.heading("game",       text="Jeu" + SORT_ICONS[None],
+                           anchor="w",
+                           command=lambda: self._on_sort_click("game"))
+        self._tree.heading("status",     text="Statut" + SORT_ICONS[None],
+                           anchor="w",
+                           command=lambda: self._on_sort_click("status"))
+        self._tree.heading("poptracker", text="PopTracker" + SORT_ICONS[None],
+                           anchor="w",
+                           command=lambda: self._on_sort_click("poptracker"))
         self._tree.heading("notes",      text="Notes",      anchor="w")
+
         self._tree.column("game",       width=240, minwidth=140)
         self._tree.column("status",     width=120, minwidth=90)
         self._tree.column("poptracker", width=100, minwidth=80)
@@ -361,6 +382,57 @@ class ArchipelagoTracker(tk.Tk):
         self._links_frame = tk.Frame(detail, bg=BG2, padx=14, pady=4)
         self._links_frame.pack(fill="x")
 
+    # ── Sort Logic ────────────────────────────────────────────────────────────
+    def _on_sort_click(self, col):
+        """Cycle: défaut → ascendant → descendant → défaut → ..."""
+        if self._sort_col != col:
+            # Nouvelle colonne : reset les autres, démarre en ascendant
+            self._sort_col = col
+            self._sort_asc = True
+        else:
+            if self._sort_asc is True:
+                self._sort_asc = False
+            elif self._sort_asc is False:
+                self._sort_col = None
+                self._sort_asc = None
+            else:
+                self._sort_asc = True
+                self._sort_col = col
+
+        self._update_heading_icons()
+        self._refresh_table()
+
+    def _update_heading_icons(self):
+        """Met à jour les icônes dans les en-têtes."""
+        cols_labels = {
+            "game":       "Jeu",
+            "status":     "Statut",
+            "poptracker": "PopTracker",
+        }
+        for col, label in cols_labels.items():
+            if self._sort_col == col:
+                icon = SORT_ICONS[self._sort_asc]
+            else:
+                icon = SORT_ICONS[None]
+            self._tree.heading(col, text=label + icon)
+
+    def _sort_key(self, item):
+        """Retourne la clé de tri pour un item (name, data, has_pt)."""
+        name, data, has_pt = item
+        col = self._sort_col
+
+        if col == "game":
+            return name.lower()
+        elif col == "status":
+            status = data.get("status", "")
+            return (STATUS_ORDER.get(status, 99), name.lower())
+        elif col == "poptracker":
+            # ✅ avant ❌ en ascendant
+            return (0 if has_pt else 1, name.lower())
+        else:
+            # Défaut : alphabétique
+            return name.lower()
+
     # ── Mouse wheel ───────────────────────────────────────────────────────────
     def _on_mousewheel_changes(self, event):
         self._changes_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
@@ -394,7 +466,6 @@ class ArchipelagoTracker(tk.Tk):
         new_cache = {"_timestamp": datetime.now().strftime("%Y-%m-%d %H:%M")}
         changes  = []
 
-        # ── Google Sheets ──────────────────────────────────────────────────
         for tab_name, gid in TABS.items():
             self._set_status(f"Récupération: {tab_name}...")
             rows = fetch_tab(tab_name, gid)
@@ -424,14 +495,12 @@ class ArchipelagoTracker(tk.Tk):
 
             new_cache[tab_name] = current
 
-        # ── PopTracker Wiki ────────────────────────────────────────────────
         self._set_status("Récupération: PopTracker Wiki...")
         pt_set = fetch_poptracker_games()
         if pt_set:
             self._poptracker_set = pt_set
             new_cache["_poptracker"] = list(pt_set)
         else:
-            # Garde l'ancien cache si la requête échoue
             self._poptracker_set = set(cache.get("_poptracker", []))
             new_cache["_poptracker"] = list(self._poptracker_set)
 
@@ -495,16 +564,15 @@ class ArchipelagoTracker(tk.Tk):
         pt_filt  = self._pt_filter.get()
         new_names = {g for icon, t, g, *_ in self._changes if icon == "➕" and t == tab}
 
-        count = 0
-        for name, data in sorted(games.items()):
+        # Construire la liste filtrée
+        filtered = []
+        for name, data in games.items():
             if not isinstance(data, dict):
                 continue
             status = data.get("status", "")
             notes  = data.get("notes",  "")
             has_pt = match_poptracker(name, self._poptracker_set)
-            pt_txt = "✅" if has_pt else "❌"
 
-            # Filtres
             if query and query not in name.lower() \
                      and query not in status.lower() \
                      and query not in notes.lower():
@@ -514,18 +582,33 @@ class ArchipelagoTracker(tk.Tk):
                     if status in STATUS_COLORS: continue
                 elif status != sf:
                     continue
-            if pt_filt == "✅ Disponible"    and not has_pt: continue
-            if pt_filt == "❌ Non disponible" and has_pt:    continue
+            if pt_filt == " Disponible"    and not has_pt: continue
+            if pt_filt == " Non disponible" and has_pt:    continue
 
-            tag  = status if status in STATUS_COLORS else "Other"
-            tags = [tag] + (["new"] if name in new_names else [])
+            filtered.append((name, data, has_pt))
 
+        # Trier
+        if self._sort_col is not None:
+            filtered.sort(
+                key=self._sort_key,
+                reverse=(self._sort_asc is False)
+            )
+        else:
+            # Défaut : alphabétique ascendant
+            filtered.sort(key=lambda x: x[0].lower())
+
+        # Insérer dans le Treeview
+        for name, data, has_pt in filtered:
+            status = data.get("status", "")
+            notes  = data.get("notes",  "")
+            pt_txt = "YES" if has_pt else "NO"
+            tag    = status if status in STATUS_COLORS else "Other"
+            tags   = [tag] + (["new"] if name in new_names else [])
             self._tree.insert("", "end",
                               values=(name, status, pt_txt, notes),
                               tags=tags)
-            count += 1
 
-        self._count_lbl.config(text=f"{count} jeux")
+        self._count_lbl.config(text=f"{len(filtered)} jeux")
 
     # ── Detail Panel ─────────────────────────────────────────────────────────
     def _on_row_select(self, event):
@@ -546,12 +629,12 @@ class ArchipelagoTracker(tk.Tk):
             wiki_url = "https://archipelago.miraheze.org/wiki/" + \
                        name.replace(" ", "_")
             self._detail_pt.config(
-                text="🎯 PopTracker: ✅",
+                text=" PopTracker: YES",
                 fg=GREEN, cursor="hand2")
             self._detail_pt.bind("<Button-1>",
                 lambda e, u=wiki_url: webbrowser.open(u))
         else:
-            self._detail_pt.config(text="🎯 PopTracker: ❌", fg=RED, cursor="")
+            self._detail_pt.config(text=" PopTracker: NO", fg=RED, cursor="")
             self._detail_pt.unbind("<Button-1>")
 
         labeled_links, plain_text = self._parse_notes(notes)

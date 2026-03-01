@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""
-Script de build — génère l'exécutable Windows (.exe)
-Usage: python build.py
-"""
 import subprocess
 import sys
 import os
@@ -10,7 +5,6 @@ import shutil
 import glob
 
 def choose_file(script_dir):
-    """Interactively choose a Python file to compile."""
     py_files = glob.glob(os.path.join(script_dir, "*.py"))
     py_files = [f for f in py_files if os.path.basename(f) != "build.py"]
 
@@ -39,12 +33,10 @@ def build():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     icon_path = os.path.join(script_dir, "logo.ico")
 
-    # Choose file to compile
     target_file = choose_file(script_dir)
     target_name = os.path.splitext(os.path.basename(target_file))[0]
     print(f"\n✅ Fichier sélectionné : {target_file}")
 
-    # Supprime les anciens builds pour forcer la mise à jour
     for folder in ["build", "dist", "__pycache__"]:
         full = os.path.join(script_dir, folder)
         if os.path.exists(full):
