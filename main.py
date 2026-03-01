@@ -148,7 +148,7 @@ def extract_github_repo(notes, apworld=""):
     return None
 
 def fetch_github_release(owner, repo, token=""):
-    """Returns {tag, date, url} for the latest release, or None."""
+    """Returns {tag, date, url}, None on error, or 'rate_limited' on 403/429."""
     try:
         api_url = f"https://api.github.com/repos/{owner}/{repo}/releases/latest"
         headers = {
@@ -158,10 +158,14 @@ def fetch_github_release(owner, repo, token=""):
         if token:
             headers["Authorization"] = "Bearer " + token
         r = requests.get(api_url, timeout=10, headers=headers)
+        if r.status_code in (403, 429):
+            return "rate_limited"
         if r.status_code == 404:
             r2 = requests.get(
                 f"https://api.github.com/repos/{owner}/{repo}/tags",
                 timeout=10, headers=headers)
+            if r2.status_code in (403, 429):
+                return "rate_limited"
             if r2.status_code == 200:
                 tags = r2.json()
                 if tags:
@@ -585,6 +589,7 @@ class ArchipelagoTracker(tk.Tk):
         changes      = []
         old_releases = cache.get("_releases", {})
         new_releases = {}
+        rate_limited = False
 
         for tab_name, gid in TABS.items():
             self._set_status(f"Récupération: {tab_name}...")
@@ -619,7 +624,7 @@ class ArchipelagoTracker(tk.Tk):
             # GitHub release fetch — only for Playable Worlds
             old_tab_rels = old_releases.get(tab_name, {})
             new_tab_rels = {}
-            if tab_name != "Core Verified":
+            if tab_name != "Core Verified" and not rate_limited:
                 total = len(current)
                 for idx, (game_name, game_data) in enumerate(current.items()):
                     self._set_status(
@@ -633,6 +638,13 @@ class ArchipelagoTracker(tk.Tk):
                         continue
                     owner, repo_name = repo
                     release = fetch_github_release(owner, repo_name, self._github_token)
+                    if release == "rate_limited":
+                        rate_limited = True
+                        # Preserve all remaining cached releases for this tab
+                        for k, v in old_tab_rels.items():
+                            if k not in new_tab_rels:
+                                new_tab_rels[k] = v
+                        break
                     if not release:
                         if game_name in old_tab_rels:
                             new_tab_rels[game_name] = old_tab_rels[game_name]
@@ -647,6 +659,9 @@ class ArchipelagoTracker(tk.Tk):
                             "🏷️", tab_name, game_name, "",
                             desc, release.get("url", ""),
                         ))
+            else:
+                # Rate limited or Core Verified — keep old release data intact
+                new_tab_rels = dict(old_tab_rels)
 
             new_releases[tab_name] = new_tab_rels
 
@@ -664,9 +679,9 @@ class ArchipelagoTracker(tk.Tk):
         save_cache(new_cache)
         self._all_games = new_cache
         self._changes   = changes
-        self.after(0, self._on_check_done)
+        self.after(0, lambda: self._on_check_done(rate_limited))
 
-    def _on_check_done(self):
+    def _on_check_done(self, rate_limited=False):
         self._checking = False
         self._check_btn.config(state="normal", text="⟳  Vérifier les mises à jour")
         ts = self._all_games.get("_timestamp", "")
@@ -675,7 +690,12 @@ class ArchipelagoTracker(tk.Tk):
         self._refresh_changes()
         n  = len(self._changes)
         pt = len(self._poptracker_set)
-        self._set_status(f"✓ Check terminé — {n} changement(s)")
+        if rate_limited:
+            self._set_status(
+                "⚠ Limite GitHub atteinte — releases incomplètes. "
+                "Ajoutez un token dans ⚙ Paramètres.")
+        else:
+            self._set_status(f"✓ Check terminé — {n} changement(s) · {pt} jeux avec PopTracker")
 
     # ── Refresh Changes Panel ─────────────────────────────────────────────────
     def _refresh_changes(self):
