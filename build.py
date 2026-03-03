@@ -59,22 +59,34 @@ def build():
 
     print("\n Installation de PyInstaller...")
     subprocess.check_call([sys.executable, "-m", "pip", "install",
-                           "pyinstaller", "requests", "--quiet"])
-    
+                           "pyinstaller", "requests", "pyyaml", "--quiet"])
+
     print(" Compilation en .exe...")
     cmd = [
         sys.executable, "-m", "PyInstaller",
         "--onefile",
         "--windowed",
         "--name", target_name,
+        # imports cachés pour les sous-packages ui et lang
+        "--hidden-import", "ui.changes",
+        "--hidden-import", "ui.detail",
+        "--hidden-import", "ui.settings",
+        "--hidden-import", "ui.table",
+        "--hidden-import", "lang.l18n",
+        "--hidden-import", "yaml",
     ]
 
     # include language resources so that translations remain available
     lang_dir = os.path.join(script_dir, "lang")
     if os.path.isdir(lang_dir):
-        # use ; on Windows to separate source and dest when bundling data
         cmd += ["--add-data", f"{lang_dir};lang"]
         print(" Langue : dossier 'lang' inclus dans l'exécutable.")
+
+    # include ui package (Python files)
+    ui_dir = os.path.join(script_dir, "ui")
+    if os.path.isdir(ui_dir):
+        cmd += ["--add-data", f"{ui_dir};ui"]
+        print(" UI : dossier 'ui' inclus dans l'exécutable.")
 
     if os.path.exists(icon_path):
         cmd += ["--icon", icon_path]

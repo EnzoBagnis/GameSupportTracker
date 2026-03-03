@@ -48,6 +48,7 @@ except ImportError:
                     parts.append(lines[i].strip())
                     i += 1
                 data[key] = " ".join(p for p in parts if p)
+                continue  # i already advanced past the block, skip the i+=1 below
             elif rest.startswith('"') and rest.endswith('"'):
                 data[key] = rest[1:-1]
             elif rest.startswith("'") and rest.endswith("'"):
