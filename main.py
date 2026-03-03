@@ -25,8 +25,8 @@ class ArchipelagoTracker(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title(t("app_title"))
-        self.geometry("1150x740")
-        self.minsize(900, 600)
+        self.geometry("1350x740")
+        self.minsize(1050, 600)
         self.configure(bg=BG)
 
         try:
@@ -204,11 +204,17 @@ class ArchipelagoTracker(tk.Tk):
         if not sel:
             return
         values = self._tree.item(sel[0], "values")
-        if not values or len(values) < 4:
+        if not values or len(values) < 6:
             return
-        name, status, _pt, notes = values[0], values[1], values[2], values[3]
+        name, status = values[0], values[1]
+        # Retrieve original data (preserves newlines in apworld/notes)
+        tab = self._tab_var.get()
+        game_data = self._all_games.get(tab, {}).get(name, {})
+        notes   = game_data.get("notes", "") if isinstance(game_data, dict) else values[4]
+        apworld = game_data.get("apworld", "") if isinstance(game_data, dict) else values[3]
         update_detail(self._detail_widgets, name, status, notes,
-                      self._tab_var.get(), self._releases, self._poptracker_set)
+                      tab, self._releases, self._poptracker_set,
+                      apworld=apworld)
 
     # ── Initial load ───────────────────────────────────────────────────────────
     def _load_initial(self):
@@ -366,5 +372,10 @@ class ArchipelagoTracker(tk.Tk):
 
 
 if __name__ == "__main__":
-    app = ArchipelagoTracker()
-    app.mainloop()
+    try:
+        app = ArchipelagoTracker()
+        app.mainloop()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        input("Press Enter to exit...")

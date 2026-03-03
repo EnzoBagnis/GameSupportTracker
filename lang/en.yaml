@@ -24,6 +24,7 @@ btn_show_changes: "▶ Changes"
 col_game:       "Game"
 col_status:     "Status"
 col_poptracker: "PopTracker"
+col_apworld:    "APWorld / Client"
 col_notes:      "Notes"
 col_owned:      "Owned"
 

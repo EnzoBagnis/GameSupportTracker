@@ -106,7 +106,7 @@ def build_tree(parent, app):
               background=[("active", ACCENT)],
               foreground=[("active", "white")])
 
-    cols = ("game", "status", "poptracker", "notes", "owned")
+    cols = ("game", "status", "poptracker", "apworld", "notes", "owned")
     tree = ttk.Treeview(inner, columns=cols, show="headings",
                         style="Custom.Treeview")
 
@@ -116,6 +116,7 @@ def build_tree(parent, app):
                  command=lambda: app._on_sort_click("status"))
     tree.heading("poptracker", text=t("col_poptracker") + SORT_ICONS[None], anchor="w",
                  command=lambda: app._on_sort_click("poptracker"))
+    tree.heading("apworld",    text=t("col_apworld"), anchor="w")
     tree.heading("notes",      text=t("col_notes"), anchor="w")
     tree.heading("owned",      text=t("col_owned") + SORT_ICONS[None], anchor="w",
                  command=lambda: app._on_sort_click("owned"))
@@ -123,7 +124,8 @@ def build_tree(parent, app):
     tree.column("game",       width=220, minwidth=130, stretch=False)
     tree.column("status",     width=120, minwidth=90,  stretch=False)
     tree.column("poptracker", width=100, minwidth=80,  stretch=False)
-    tree.column("notes",      width=430, minwidth=160, stretch=True)
+    tree.column("apworld",    width=200, minwidth=100, stretch=False)
+    tree.column("notes",      width=300, minwidth=160, stretch=True)
     tree.column("owned",      width=70,  minwidth=60,  stretch=False)
 
     vsb = ttk.Scrollbar(inner, orient="vertical", command=tree.yview)
@@ -149,14 +151,18 @@ def apply_columns(tree, tab, sort_col, sort_asc):
     if is_core:
         tree.column("status", width=0, minwidth=0, stretch=False)
         tree.heading("status", text="")
+        tree.column("apworld", width=0, minwidth=0, stretch=False)
+        tree.heading("apworld", text="")
         tree.column("game",  width=260, minwidth=140)
         tree.column("notes", width=480, minwidth=180)
     else:
         tree.column("status", width=120, minwidth=90, stretch=False)
         tree.heading("status", text=t("col_status") + SORT_ICONS[
             sort_asc if sort_col == "status" else None])
+        tree.column("apworld", width=200, minwidth=100, stretch=False)
+        tree.heading("apworld", text=t("col_apworld"))
         tree.column("game",  width=220, minwidth=130)
-        tree.column("notes", width=430, minwidth=160)
+        tree.column("notes", width=300, minwidth=160)
 
 
 def update_heading_icons(tree, tab, sort_col, sort_asc):
@@ -205,12 +211,14 @@ def refresh_table(tree, app):
             continue
         status   = data.get("status", "")
         notes    = data.get("notes",  "")
+        apworld  = data.get("apworld", "")
         has_pt   = match_poptracker(name, app._poptracker_set)
         is_owned = _normalize_steam(name) in app._steam_owned
 
         if query and query not in name.lower() \
                  and query not in status.lower() \
-                 and query not in notes.lower():
+                 and query not in notes.lower() \
+                 and query not in apworld.lower():
             continue
         if sf != "All":
             if sf == "Other":
@@ -233,6 +241,7 @@ def refresh_table(tree, app):
     for idx, (name, data, has_pt, is_owned) in enumerate(filtered):
         status    = data.get("status", "")
         notes     = data.get("notes",  "")
+        apworld   = data.get("apworld", "")
         pt_txt    = "YES" if has_pt   else "NO"
         owned_txt = "YES" if is_owned else "NO"
 
@@ -244,7 +253,7 @@ def refresh_table(tree, app):
         stripe = "even_row" if idx % 2 == 0 else "odd_row"
         tags   = [stripe, row_tag] + (["new"] if name in new_names else [])
         tree.insert("", "end",
-                    values=(name, status, pt_txt, notes, owned_txt),
+                    values=(name, status, pt_txt, apworld, notes, owned_txt),
                     tags=tags)
 
     app._count_lbl.config(text=t("count_label", n=len(filtered)))

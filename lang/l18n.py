@@ -55,7 +55,7 @@ except ImportError:
                 data[key] = rest[1:-1]
             else:
                 data[key] = rest
-                i += 1
+            i += 1
         return data
 
 
