@@ -1,0 +1,22 @@
+# PyInstaller
+*.spec
+build/
+dist/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Cache applicatif
+cache.json
+settings.json
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+Thumbs.db
+.DS_Store
+
