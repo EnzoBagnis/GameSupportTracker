@@ -50,7 +50,7 @@ class GameSupportTracker(tk.Tk):
         self._check_releases = _s.get("check_releases", False)
 
         self._filter_var    = tk.StringVar()
-        self._tab_var       = tk.StringVar(value="Playable Worlds")
+        self._tab_var       = tk.StringVar(value="All Games")
         self._status_filter = tk.StringVar(value="All")
         self._pt_filter     = tk.StringVar(value="All")
         self._owned_filter  = tk.StringVar(value="All")

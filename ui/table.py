@@ -26,6 +26,16 @@ def build_filter_bar(parent, app):
     app._show_left_btn.pack(side="left", padx=(0, 8))
     app._show_left_btn.pack_forget()
 
+    # Tab "All Games" en premier
+    rb_all = tk.Radiobutton(r1, text=t("tab_all_games"), variable=app._tab_var,
+                            value="All Games", command=app._on_tab_change,
+                            bg=BG3, fg=TEXT, selectcolor=BG3,
+                            activebackground=BG3, activeforeground=ACCENT2,
+                            font=("Courier New", 9, "bold"),
+                            indicatoron=False, relief="flat",
+                            padx=10, pady=4, cursor="hand2")
+    rb_all.pack(side="left", padx=(0, 4))
+
     for tab in TABS.keys():
         rb = tk.Radiobutton(r1, text=tab, variable=app._tab_var,
                             value=tab, command=app._on_tab_change,
@@ -54,10 +64,13 @@ def build_filter_bar(parent, app):
 
     tk.Label(r2, text=t("filter_status"), bg=BG3, fg=TEXT_DIM,
              font=("Courier New", 9)).pack(side="left", padx=(0, 4))
-    ttk.Combobox(r2, textvariable=app._status_filter,
-                 values=[t("filter_all")] + list(STATUS_COLORS.keys()) + ["Other"],
-                 state="readonly", width=13,
-                 font=("Courier New", 9)).pack(side="left")
+    _status_values_base = [t("filter_all")] + list(STATUS_COLORS.keys())
+    _status_values_all  = [t("filter_all")] + list(STATUS_COLORS.keys()) + ["Core Verified"]
+    app._status_combo = ttk.Combobox(r2, textvariable=app._status_filter,
+                 values=_status_values_all,
+                 state="readonly", width=16,
+                 font=("Courier New", 9))
+    app._status_combo.pack(side="left")
     app._status_filter.trace_add("write", lambda *a: app._refresh_table())
 
     tk.Label(r2, text=t("filter_pt"), bg=BG3, fg=TEXT_DIM,
@@ -170,7 +183,7 @@ def update_heading_icons(tree, tab, sort_col, sort_asc):
 
 
 def sort_key(item, sort_col):
-    name, data, has_pt, is_owned = item
+    name, data, has_pt, is_owned = item[0], item[1], item[2], item[3]
     if sort_col == "game":
         return name.lower()
     elif sort_col == "status":
@@ -188,16 +201,32 @@ def refresh_table(tree, app):
         tree.delete(item)
 
     tab   = app._tab_var.get()
-    games = app._all_games.get(tab, {})
+
+    # All Games : fusion de tous les tabs (Playable Worlds + Core Verified)
+    if tab == "All Games":
+        games = {}
+        source_map = {}  # game_name -> tab d'origine
+        for tab_name in TABS.keys():
+            tab_data = app._all_games.get(tab_name, {})
+            if isinstance(tab_data, dict):
+                for name, data in tab_data.items():
+                    if name not in games:
+                        games[name] = data
+                        source_map[name] = tab_name
+    else:
+        games = app._all_games.get(tab, {})
+        source_map = {name: tab for name in games}
+
     if not isinstance(games, dict):
         return
 
-    query      = app._filter_var.get().lower()
-    sf         = app._status_filter.get()
-    pt_filt    = app._pt_filter.get()
-    owned_filt = app._owned_filter.get()
-    new_names  = {e[2] for e in app._changes if e[0] == "➕" and e[1] == tab}
-    is_core    = tab == "Core Verified"
+    query       = app._filter_var.get().lower()
+    sf          = app._status_filter.get()
+    pt_filt     = app._pt_filter.get()
+    owned_filt  = app._owned_filter.get()
+    is_all      = tab == "All Games"
+    new_names   = {e[2] for e in app._changes if e[0] == "➕" and (is_all or e[1] == tab)}
+    is_core     = tab == "Core Verified"
 
     filtered = []
     for name, data in games.items():
@@ -207,22 +236,24 @@ def refresh_table(tree, app):
         notes    = data.get("notes",  "")
         has_pt   = match_poptracker(name, app._poptracker_set)
         is_owned = is_owned_on_steam(name, app._steam_owned)
+        src      = source_map.get(name, "")
 
         if query and query not in name.lower() \
                  and query not in status.lower() \
                  and query not in notes.lower():
             continue
         if sf != "All":
-            if sf == "Other":
-                if status in STATUS_COLORS: continue
+            if sf == "Core Verified":
+                if src != "Core Verified":
+                    continue
             elif status != sf:
                 continue
-        if pt_filt == " Disponible"     and not has_pt:   continue
-        if pt_filt == " Non disponible" and has_pt:       continue
-        if owned_filt == " YES"         and not is_owned: continue
-        if owned_filt == " NO"          and is_owned:     continue
+        if pt_filt == t("filter_pt_yes") and not has_pt:   continue
+        if pt_filt == t("filter_pt_no")  and has_pt:       continue
+        if owned_filt == t("filter_owned_yes") and not is_owned: continue
+        if owned_filt == t("filter_owned_no")  and is_owned:     continue
 
-        filtered.append((name, data, has_pt, is_owned))
+        filtered.append((name, data, has_pt, is_owned, src))
 
     if app._sort_col is not None:
         filtered.sort(key=lambda x: sort_key(x, app._sort_col),
@@ -230,21 +261,33 @@ def refresh_table(tree, app):
     else:
         filtered.sort(key=lambda x: x[0].lower())
 
-    for idx, (name, data, has_pt, is_owned) in enumerate(filtered):
+    for idx, (name, data, has_pt, is_owned, src) in enumerate(filtered):
         status    = data.get("status", "")
         notes     = data.get("notes",  "")
         pt_txt    = "YES" if has_pt   else "NO"
         owned_txt = "YES" if is_owned else "NO"
 
-        if is_core:
+        row_is_core = (tab == "Core Verified") or (is_all and src == "Core Verified" and not status)
+        if row_is_core:
             row_tag = "core_yes" if has_pt else "core_no"
+            display_status = "Core Verified" if is_all else status
         else:
             row_tag = status if status in STATUS_COLORS else "Other"
+            display_status = status
 
         stripe = "even_row" if idx % 2 == 0 else "odd_row"
         tags   = [stripe, row_tag] + (["new"] if name in new_names else [])
         tree.insert("", "end",
-                    values=(name, status, pt_txt, notes, owned_txt),
+                    values=(name, display_status, pt_txt, notes, owned_txt),
                     tags=tags)
 
     app._count_lbl.config(text=t("count_label", n=len(filtered)))
+
+    # Mettre à jour les valeurs du filtre Status selon le tab
+    if hasattr(app, "_status_combo"):
+        base   = [t("filter_all")] + list(STATUS_COLORS.keys())
+        values = base + ["Core Verified"] if tab == "All Games" else base
+        app._status_combo.config(values=values)
+        # Réinitialiser si la valeur actuelle n'est plus valide
+        if app._status_filter.get() == "Core Verified" and tab != "All Games":
+            app._status_filter.set(t("filter_all"))

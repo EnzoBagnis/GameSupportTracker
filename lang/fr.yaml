@@ -37,6 +37,7 @@ filter_pt_no:   " Non disponible"
 filter_owned_yes: " YES"
 filter_owned_no:  " NO"
 count_label:    "{n} jeux"
+tab_all_games:  "Tous les jeux"
 
 # ── Panneau détail (bas) ───────────────────────────────────────────────────────
 detail_placeholder: "Cliquez sur un jeu pour voir les détails"
