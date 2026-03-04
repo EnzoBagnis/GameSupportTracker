@@ -4,9 +4,19 @@ Toutes les modifications notables de ce projet sont documentées ici.
 
 ---
 
-## [Unreleased] — en développement
+## [Unrealesed] -- en dévelopement
+### Ajouts
+- **License** : Ajout de la license MIT au projet
+### Modifications
+- Amélioration du script de comparaison de jeu. Peut désormais **détecter** une partie des **acronymes**.
+ex Totally Accurate Battle Simulator = TABS
+- Changement du **nom du projet**
+maintenant : Game Support Tracker
+précedement : Archipelago Game Tracker
 
-### 🆕 Ajouts
+## [v1.1]
+
+###  Ajouts
 - **Architecture modulaire** : le code principal a été découpé en plusieurs modules dédiés :
   - `cache.py` — gestion du cache et des paramètres
   - `config.py` — constantes globales (couleurs, URLs, statuts…)
@@ -46,13 +56,13 @@ Toutes les modifications notables de ce projet sont documentées ici.
   - Installation sans droits administrateur (dossier utilisateur)
   - Raccourci bureau optionnel, désinstallation propre
 
-### 🔄 Modifications
+###  Modifications
 - Interface principale remaniée : panneau gauche redimensionnable, mise en page générale améliorée
 - Fenêtre principale redimensionnable (taille minimale : 1050×600)
 - Le panneau de détail affiche maintenant séparément les liens APWorld/Client et les liens des notes
 - `README.md` enrichi avec la documentation des paramètres, de l'installeur et du changelog
 
-### 🐛 Corrections
+###  Corrections
 - Correction du scroll dans le panneau des changements
 - Correction de la normalisation des noms pour la détection PopTracker et Steam
 - Correction du build pour inclure correctement les ressources de langue
@@ -61,7 +71,7 @@ Toutes les modifications notables de ce projet sont documentées ici.
 
 ## [1.0.2]
 
-### 🆕 Ajouts
+###  Ajouts
 - Intégration PopTracker : détection automatique des packs PopTracker disponibles depuis le wiki Archipelago
 - Nouveaux filtres dans la barre d'outils (statut, PopTracker)
 - Panneau de détail d'un jeu avec liens cliquables dans les notes
@@ -70,7 +80,7 @@ Toutes les modifications notables de ce projet sont documentées ici.
 
 ## [1.0.1]
 
-### 🔄 Modifications
+###  Modifications
 - Correction de la gestion du chemin du cache
 - Mise à jour de la documentation
 

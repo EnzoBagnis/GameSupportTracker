@@ -1,32 +1,32 @@
 # ⬡ Game Support Tracker
 
-> Surveille la liste communautaire des APWorlds Archipelago et te notifie des nouveaux jeux ajoutés, des changements de statut et des retraits.
+> Surveille la liste communautaire des APWorlds Archipelago et notifie des nouveaux jeux ajoutés, des changements de statut et des retraits.
 
 ---
 
-## ⬇️ Téléchargement
+##  Téléchargement
 
-- **Installeur** : télécharge `GameSupportTrackerSetup.exe` depuis la page [Releases](https://github.com/EnzoBagnis/GameSupportTracker/releases/latest) et suis l'assistant d'installation.
+- **Installeur** : Télécharge `GameSupportTrackerSetup.exe` depuis la page [Releases](https://github.com/EnzoBagnis/GameSupportTracker/releases/latest) et suis l'assistant d'installation.
 
 
 ---
 
-## 🚀 Premier lancement
+##  Premier lancement
 
 1. **Lance** `GameSupportTracker.exe`
 2. Clique sur **⟳ Vérifier les mises à jour**
 3. L'application récupère les données et les enregistre en cache — c'est ta référence de départ
-4. Le panneau "Derniers changements" affiche `0 changement` → **c'est normal**, il n'y a rien à comparer encore !
+4. Le panneau "Derniers changements" affiche une très grande quantité de changement → **c'est normal**, il viens de récupérer toute les informations donc, il les considèrent comme changements !
 
 À partir du **deuxième check**, tu verras uniquement ce qui a changé depuis la dernière vérification.
 
 ---
 
-## 🖥️ Interface
+##  Interface
 
 | Zone | Description |
 |---|---|
-| **Panneau gauche** | Historique des changements détectés (ajouts ✅, retraits ❌, statuts 🔄) |
+| **Panneau gauche** | Historique des changements détectés (ajouts , retraits , statuts ) |
 | **Onglets** | Basculer entre *Playable Worlds* et *Core Verified* |
 | **Recherche** | Filtrer les jeux par nom, statut ou notes |
 | **Filtre statut** | Afficher uniquement Stable, Unstable, In Review… |
@@ -37,74 +37,73 @@
 
 ---
 
-## 🎨 Statuts
+##  Statuts
 
 | Statut | Signification |
 |---|---|
 | 🟢 **Stable** | Fonctionnel et testé, recommandé pour les multis |
 | 🟠 **Unstable** | Jouable mais peut contenir des bugs |
 | 🔵 **In Review** | Pull Request ouverte sur le repo officiel |
-| 🔴 **Broken on Main** | Ne fonctionne plus avec Archipelago 0.6.2+ |
+| 🔴 **Broken on Main** | Ne fonctionne pas/plus avec Archipelago 0.6.2+ |
 | 🟣 **APWorld Only** | Disponible uniquement en `.apworld` custom |
 | 🟩 **Merged** | Mergé, sera dans la prochaine release officielle |
 
 ---
 
-## ⚙️ Paramètres
+##  Paramètres
 
 Clique sur l'icône ⚙ pour ouvrir la fenêtre de paramètres. Tu peux y configurer :
 
-### 🐙 GitHub (releases)
+###  GitHub (releases)
 - **Activer la vérification des releases GitHub** : lors de chaque check, l'app interroge l'API GitHub pour récupérer la dernière release de chaque jeu ayant un lien GitHub dans ses notes.
-- **Token GitHub** : nécessaire pour dépasser la limite de 60 requêtes/heure de l'API publique. Crée un token avec le scope `public_repo` sur [github.com/settings/tokens](https://github.com/settings/tokens/new?description=GameSupportTracker&scopes=public_repo).
+- **Token GitHub** : nécessaire pour dépasser la limite de 60 requêtes/heure de l'API publique. 
+Crée un token avec SEULEMENT le scope `public_repo` sur [github.com/settings/tokens](https://github.com/settings/tokens/new?description=GameSupportTracker&scopes=public_repo), mettre plus de paramètre pourrais causer des risques.
 
-### 🎮 Steam
-- **Clé API Steam** : obtiens-la sur [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey).
+###  Steam
+- **Clé API Steam** : obtenable sur [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey).
 - **Steam ID(s)** : un identifiant Steam par ligne (compte personnel ou membres d'une famille). Trouve ton Steam ID sur [steamidfinder.com](https://www.steamidfinder.com/).
-- Clique sur **🎮 Refresh Steam** pour charger ta bibliothèque. Une colonne **Owned** apparaît alors dans le tableau.
+- Clique sur ** Refresh Steam** pour charger ta bibliothèque. Une colonne **Owned** apparaît alors dans le tableau.
 
-### 🌐 Langue
+###  Langue
 - Choisis entre **English** et **Français** puis clique sur **Appliquer**. Un redémarrage de l'app est nécessaire pour que le changement prenne effet.
 
 ---
 
-## ❓ FAQ
+##  FAQ
 
 **Pourquoi 0 changement au premier lancement ?**
 > Le premier check crée la référence. Les changements apparaissent à partir du second.
 
 **Où est sauvegardé le cache ?**
-> Sauvegardé automatiquement dans `%APPDATA%\GameSupportTracker\archipelago_cache.json` (ex: `C:\Users\Enzo\AppData\Roaming\GameSupportTracker\`). Ne le supprime pas, sinon tu perds la comparaison.
+> Sauvegardé automatiquement dans `%APPDATA%\GameSupportTracker\archipelago_cache.json` (ex: `C:\Users\Enzo\AppData\Roaming\GameSupportTracker\`). Ne pas le supprime, sinon tu perds la comparaison.
 
 **Besoin d'installer Python ou quoi que ce soit ?**
 > Non. Le `.exe` est autonome, tout est inclus.
 
 **Le panneau gauche a disparu, comment le retrouver ?**
-> Clique sur le bouton **▶ Changes** dans la barre de filtre pour le réafficher.
+> ~~Clique sur le bouton **▶ Changes** dans la barre de filtre pour le réafficher.~~
+Fonctionnalité actuellement inutile, reconception en cours...
 
 ---
 
-## 📊 Source des données
+##  Source des données
 
 Les données proviennent du [Google Sheets communautaire Archipelago](https://docs.google.com/spreadsheets/d/1iuzDTOAvdoNe8Ne8i461qGNucg5OuEoF-Ikqs8aUQZw) maintenu par la communauté.
 
 ---
 
-## 🗒️ Changelog
+##  Changelog
 
-### Depuis la v1.0.2
+### Depuis la v1.1
 
-- **Architecture** : le code a été découpé en plusieurs modules (`cache.py`, `config.py`, `data.py`, `ui/changes.py`, `ui/detail.py`, `ui/settings.py`, `ui/table.py`) pour une meilleure maintenabilité
-- **Internationalisation** : support multilingue ajouté (Français 🇫🇷 / English 🇬🇧) via des fichiers YAML dans `lang/`
-- **Colonne APWorld/Client** : nouvelle colonne dans le tableau avec liens directs vers les APWorlds ou clients custom des jeux
-- **Intégration Steam** : détection de la bibliothèque Steam via API — colonne *Owned* et filtre associé
-- **Vérification des releases GitHub** : optionnelle (configurable), affiche la dernière release de chaque jeu dans le panneau de détail
-- **Fenêtre Paramètres** : nouvelle fenêtre de configuration (token GitHub, clé Steam, Steam ID(s), langue)
-- **Panneau gauche rétractable** : le panneau "Derniers changements" peut être masqué/affiché via un bouton dédié
-- **Redimensionnement** : la fenêtre principale est redimensionnable, le panneau gauche peut être resizé
-- **Logo** : icône `logo.ico` ajoutée à l'application et à l'exécutable
-- **Script de build** : `build.py` pour compiler l'exe en un clic (PyInstaller) avec choix du fichier source
-- **Installeur Inno Setup** : `installer.iss` pour générer un installeur Windows (`GameSupportTrackerSetup.exe`), proposé automatiquement après le build
+### Ajouts
+- **License** : Ajout de la license MIT au projet
+### Modifications
+- Amélioration du script de comparaison de jeu. Peut désormais **détecter** une partie des **acronymes**.
+ex Totally Accurate Battle Simulator = TABS
+- Changement du **nom du projet**
+maintenant : Game Support Tracker
+précedement : Archipelago Game Tracker
 
 ---
 
