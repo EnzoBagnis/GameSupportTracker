@@ -236,124 +236,131 @@ def is_owned_on_steam(sheet_name: str, steam_variants: set[str]) -> bool:
     return bool(_normalize_steam(sheet_name) & steam_variants)
 
 
-# ── Itch.io ────────────────────────────────────────────────────────────────────
-# Requires an OAuth access token with the `profile:owned` scope.
+# ── Playnite ───────────────────────────────────────────────────────────────────
+# Reads the games.db file from a Playnite backup ZIP.
+# Playnite stores its library in a LiteDB binary format. We parse it directly
+# by locating BSON "Favorite" boolean fields (present exactly once per game
+# document) and scanning backwards for the game's Name field.
 #
-# How the user gets a token (no web server needed):
-#   1. Go to https://itch.io/user/settings/oauth-apps → create an OAuth app
-#   2. Set redirect URI to:  urn:ietf:wg:oauth:2.0:oob
-#   3. Open in browser:
-#      https://itch.io/oauth/authorize
-#        ?client_id=YOUR_CLIENT_ID
-#        &scope=profile%3Aowned
-#        &response_type=token
-#        &redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob
-#   4. Authorize → itch.io shows the token on-screen → user copies it here.
+# How the user creates the backup:
+#   Playnite main menu (☰) → Library → Save library data
+#   → saves a .zip file the user can select in GST settings.
 
-ITCH_OWNED_URL = "https://api.itch.io/profile/owned-keys"
-
-
-def fetch_itch_owned(token: str) -> tuple[set[str] | None, int]:
+def _parse_games_db(db_bytes: bytes) -> list[str]:
     """
-    Return (variants_set, total_count) for all games owned on itch.io.
-    Returns (None, 0) on error (bad token, network failure).
-    Returns (set(), 0) on success with an empty library.
+    Extract game names from a Playnite games.db (LiteDB/BSON) binary blob.
+    Returns a list of unique game name strings.
+
+    Strategy:
+      - Use \\x08Favorite\\x00 as the anchor: this boolean field appears exactly
+        once per game document, even for games without a store ID.
+      - Walk backwards (up to 80 KB) from each anchor to find the last
+        \\x02Name\\x00 field that belongs to the game doc, skipping:
+          * Link sub-document names (Name immediately followed by Url)
+          * CompletionStatus names (Name immediately followed by RecentActivity)
+      - Also check 50 KB forward for edge cases where the Name segment lands
+        after the Favorite in the file (heavily fragmented docs).
     """
-    if not token:
-        return None, 0
+    import struct
 
-    headers = {
-        "User-Agent":    "GameSupportTracker/1.0",
-        "Authorization": f"Bearer {token}",
-    }
+    fav_needle    = b'\x08Favorite\x00'
+    name_needle   = b'\x02Name\x00'
+    url_needle    = b'\x02Url\x00'
+    recent_needle = b'RecentActivity'
+    LOOK_BACK     = 80_000
+    LOOK_FWD      = 50_000
 
-    owned_names: list[str] = []
-    page = 1
+    def _read_bson_string(data, pos):
+        if pos + 4 > len(data):
+            return None
+        n = struct.unpack_from('<I', data, pos)[0]
+        if not (1 <= n <= 512):
+            return None
+        end = pos + 4 + n - 1
+        if end > len(data):
+            return None
+        v = data[pos + 4:end].decode('utf-8', errors='replace')
+        return None if ('\x00' in v or v.count('\ufffd') > 1) else v
+
+    def _find_game_name(data, anchor):
+        """Search backwards then forwards from anchor for the game Name."""
+        # ── backwards pass ────────────────────────────────────────────────
+        window_start = max(0, anchor - LOOK_BACK)
+        window = data[window_start:anchor]
+        ni = len(window)
+        while True:
+            ni = window.rfind(name_needle, 0, ni)
+            if ni == -1:
+                break
+            abs_ni  = window_start + ni
+            candidate = _read_bson_string(data, abs_ni + len(name_needle))
+            if not candidate:
+                continue
+            val_end = abs_ni + len(name_needle) + 4 + len(candidate)
+            after   = data[val_end:val_end + 20]
+            if url_needle in after or recent_needle in after:
+                continue
+            return candidate
+
+        # ── forward pass (fragmented docs) ───────────────────────────────
+        fwd_end = min(len(data), anchor + LOOK_FWD)
+        ni = anchor
+        while True:
+            ni = data.find(name_needle, ni + 1, fwd_end)
+            if ni == -1:
+                break
+            candidate = _read_bson_string(data, ni + len(name_needle))
+            if not candidate:
+                continue
+            val_end = ni + len(name_needle) + 4 + len(candidate)
+            after   = data[val_end:val_end + 20]
+            if url_needle in after or recent_needle in after:
+                continue
+            return candidate
+
+        return None
+
+    games = []
+    seen  = set()
+    pos   = 0
 
     while True:
-        try:
-            r = requests.get(
-                ITCH_OWNED_URL,
-                params={"page": page},
-                headers=headers,
-                timeout=15,
-            )
-        except Exception:
-            return None, 0
-
-        if r.status_code != 200:
+        fi = db_bytes.find(fav_needle, pos)
+        if fi == -1:
             break
+        pos = fi + 1
 
-        data = r.json()
-        keys = data.get("owned_keys", [])
-        # itch.io returns {} (empty dict) when there are no results,
-        # and either a list or dict with int keys when there are games.
-        if isinstance(keys, dict):
-            keys = list(keys.values())
-        if not keys:
-            break
+        name = _find_game_name(db_bytes, fi)
+        if name and name not in seen:
+            seen.add(name)
+            games.append(name)
 
-        for entry in keys:
-            game = entry.get("game") or {}
-            name = game.get("title", "").strip()
-            if name:
-                owned_names.append(name)
+    return games
 
-        # itch.io paginates in chunks of 50; stop when we get a short page
-        if len(keys) < 50:
-            break
-        page += 1
-
-    all_variants: set[str] = set()
-    for name in owned_names:
-        all_variants.update(_normalize_steam(name))   # reuse same normaliser
-
-    return all_variants, len(owned_names)
-
-
-def is_owned_on_itch(sheet_name: str, itch_variants: set[str]) -> bool:
-    return bool(_normalize_steam(sheet_name) & itch_variants)
-
-
-# ── Playnite ───────────────────────────────────────────────────────────────────
-# Playnite can export the full library as a JSON file.
-# How the user exports:
-#   Main menu → Library → Export Library…  (Playnite 10+)
-#   Or via the built-in script:  Start-Process playnite://playnite/exportlibrary
-#
-# The exported JSON is a list of game objects; the fields we care about are:
-#   "Name"        – display name  (always present)
-#   "Source"      – e.g. "Steam", "GOG", "Epic Games", "itch.io", "Xbox"
-#   "IsInstalled" – bool (we index everything, installed or not)
 
 def load_playnite_library(path: str) -> tuple[set[str], int]:
     """
-    Parse a Playnite JSON export and return (variants_set, total_count).
-    variants_set is compatible with is_owned_on_steam() / is_owned_on_itch().
-    Returns (set(), 0) if the file can't be read or is malformed.
+    Load a Playnite library from a backup ZIP (produced by
+    Library → Save library data) and return (variants_set, total_count).
+    Returns (set(), 0) on any error.
     """
-    import json
+    import zipfile
 
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            games: list[dict] = json.load(f)
+        with zipfile.ZipFile(path, 'r') as z:
+            # The games database is always at library/games.db inside the ZIP
+            with z.open('library/games.db') as f:
+                db_bytes = f.read()
     except Exception:
         return set(), 0
 
-    if not isinstance(games, list):
-        return set(), 0
+    names = _parse_games_db(db_bytes)
 
     all_variants: set[str] = set()
-    count = 0
-
-    for game in games:
-        name = (game.get("Name") or "").strip()
-        if not name:
-            continue
+    for name in names:
         all_variants.update(_normalize_steam(name))
-        count += 1
 
-    return all_variants, count
+    return all_variants, len(names)
 
 
 def is_owned_on_playnite(sheet_name: str, playnite_variants: set[str]) -> bool:

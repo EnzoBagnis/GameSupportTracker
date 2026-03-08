@@ -8,7 +8,7 @@ from config import (
 )
 from cache import load_settings, save_settings, load_cache, save_cache
 from lang.l18n import t
-from data import fetch_steam_owned, fetch_itch_owned, load_playnite_library
+from data import fetch_steam_owned, load_playnite_library
 
 
 def open_settings(app):
@@ -199,98 +199,62 @@ def open_settings(app):
             win.after(0, _done)
         threading.Thread(target=_thread, daemon=True).start()
 
-    steam_btn = tk.Button(pad, text=t("settings_steam_btn"),
+    steam_btns_row = tk.Frame(pad, bg=BG)
+    steam_btns_row.pack(anchor="w", pady=(6, 0))
+    steam_btn = tk.Button(steam_btns_row, text=t("settings_steam_btn"),
                           bg=BG3, fg=TEXT, font=("Courier New", 9, "bold"),
                           relief="flat", padx=12, pady=5, cursor="hand2",
                           activebackground=ACCENT, activeforeground="white")
     steam_btn.config(command=lambda: _do_steam_refresh(steam_btn))
-    steam_btn.pack(anchor="w", pady=(6, 0))
+    steam_btn.pack(side="left")
 
-    # ── Itch.io ────────────────────────────────────────────────────────────
-    _section_sep(pad)
-    tk.Label(pad, text=t("settings_itch_heading"), bg=BG, fg=TEXT,
-             font=("Courier New", 9, "bold")).pack(anchor="w")
-    _wrapping_label(pad, t("settings_itch_hint"))
+    def _clear_steam():
+        app._steam_owned = set()
+        c = load_cache()
+        c["_steam_owned"] = []
+        save_cache(c)
+        s = load_settings()
+        s.pop("steam_game_count", None)
+        save_settings(s)
+        steam_status_lbl.config(text=t("settings_clear_done"), fg=TEXT_DIM)
+        app._refresh_table()
 
-    tk.Label(pad, text=t("settings_itch_token_label"), bg=BG, fg=TEXT_DIM,
-             font=("Courier New", 8)).pack(anchor="w")
-    _wrapping_label(pad, t("settings_itch_token_hint"))
-
-    itch_token_var = tk.StringVar(value=_s.get("itch_token", ""))
-    itch_token_frame = tk.Frame(pad, bg=BG)
-    itch_token_frame.pack(fill="x")
-    itch_token_entry = tk.Entry(itch_token_frame, textvariable=itch_token_var,
-                                bg=BG3, fg=TEXT, insertbackground=TEXT,
-                                relief="flat", font=("Courier New", 9),
-                                width=48, show="•")
-    itch_token_entry.pack(side="left", ipady=5, padx=(0, 6))
-    show_itch = tk.BooleanVar(value=False)
-    tk.Checkbutton(itch_token_frame, text=t("settings_itch_token_show"),
-                   variable=show_itch,
-                   command=lambda: itch_token_entry.config(
-                       show="" if show_itch.get() else "•"),
-                   bg=BG, fg=TEXT_DIM, selectcolor=BG3,
-                   activebackground=BG, font=("Courier New", 8)).pack(side="left")
-
-    itch_lnk = tk.Label(pad, text=t("settings_itch_token_link"),
-                        bg=BG, fg=ACCENT2, font=("Courier New", 8, "underline"),
-                        cursor="hand2")
-    itch_lnk.pack(anchor="w", pady=(4, 0))
-    itch_lnk.bind("<Button-1>", lambda e: webbrowser.open(
-        "https://itch.io/docs/api/serverside#authentication/oauth2"))
-
-    itch_status_lbl = tk.Label(pad, text="", bg=BG, fg=TEXT_DIM,
-                               font=("Courier New", 8))
-    itch_status_lbl.pack(anchor="w", pady=(4, 0))
-
-    if app._itch_owned:
-        itch_status_lbl.config(
-            text=t("settings_itch_cache", n=_s.get("itch_game_count", len(app._itch_owned))),
-            fg=TEXT_DIM)
-
-    def _do_itch_refresh(btn):
-        token = itch_token_var.get().strip()
-        if not token:
-            itch_status_lbl.config(text=t("settings_itch_missing"), fg=YELLOW)
-            return
-        btn.config(state="disabled", text=t("settings_itch_loading"))
-        itch_status_lbl.config(text=t("settings_itch_connecting"), fg=TEXT_DIM)
-
-        def _thread():
-            owned_variants, game_count = fetch_itch_owned(token)
-            def _done():
-                if owned_variants is not None:
-                    app._itch_owned = owned_variants
-                    c = load_cache()
-                    c["_itch_owned"] = list(owned_variants)
-                    save_cache(c)
-                    s = load_settings()
-                    s["itch_token"]      = token
-                    s["itch_game_count"] = game_count
-                    save_settings(s)
-                    itch_status_lbl.config(
-                        text=t("settings_itch_success", n=game_count), fg=GREEN)
-                    app._refresh_table()
-                else:
-                    itch_status_lbl.config(
-                        text=t("settings_itch_error"), fg=RED)
-                btn.config(state="normal", text=t("settings_itch_btn"))
-            win.after(0, _done)
-        threading.Thread(target=_thread, daemon=True).start()
-
-    itch_btn = tk.Button(pad, text=t("settings_itch_btn"),
-                         bg=BG3, fg=TEXT, font=("Courier New", 9, "bold"),
-                         relief="flat", padx=12, pady=5, cursor="hand2",
-                         activebackground=ACCENT, activeforeground="white")
-    itch_btn.config(command=lambda: _do_itch_refresh(itch_btn))
-    itch_btn.pack(anchor="w", pady=(6, 0))
+    tk.Button(steam_btns_row, text=t("settings_clear_btn"),
+              bg=BG3, fg=RED, font=("Courier New", 9),
+              relief="flat", padx=10, pady=5, cursor="hand2",
+              activebackground=BG3, activeforeground=RED,
+              command=_clear_steam).pack(side="left", padx=(8, 0))
 
     # ── Playnite ───────────────────────────────────────────────────────────
     _section_sep(pad)
     tk.Label(pad, text=t("settings_playnite_heading"), bg=BG, fg=TEXT,
              font=("Courier New", 9, "bold")).pack(anchor="w")
     _wrapping_label(pad, t("settings_playnite_hint"))
-    _wrapping_label(pad, t("settings_playnite_hint2"))
+
+    # Step-by-step guide
+    steps_frame = tk.Frame(pad, bg=BG3, padx=12, pady=10)
+    steps_frame.pack(fill="x", pady=(4, 10))
+
+    for i, key in enumerate([
+        "settings_playnite_step1",
+        "settings_playnite_step2",
+        "settings_playnite_step3",
+    ], start=1):
+        row = tk.Frame(steps_frame, bg=BG3)
+        row.pack(fill="x", pady=2)
+        tk.Label(row, text=f"{i}.", bg=BG3, fg=ACCENT2,
+                 font=("Courier New", 9, "bold"), width=3, anchor="w").pack(side="left")
+        tk.Label(row, text=t(key), bg=BG3, fg=TEXT,
+                 font=("Courier New", 9), anchor="w", justify="left",
+                 wraplength=480).pack(side="left", fill="x")
+
+    # "Open Playnite" shortcut button
+    pn_open_lnk = tk.Label(steps_frame, text=t("settings_playnite_open_link"),
+                           bg=BG3, fg=ACCENT2,
+                           font=("Courier New", 8, "underline"), cursor="hand2")
+    pn_open_lnk.pack(anchor="w", pady=(4, 0))
+    pn_open_lnk.bind("<Button-1>", lambda e: webbrowser.open(
+        "https://playnite.link/download.html"))
 
     tk.Label(pad, text=t("settings_playnite_path_label"), bg=BG, fg=TEXT_DIM,
              font=("Courier New", 8)).pack(anchor="w")
@@ -305,8 +269,8 @@ def open_settings(app):
 
     def _browse_playnite():
         path = filedialog.askopenfilename(
-            title="Select Playnite library export",
-            filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+            title="Select Playnite backup file",
+            filetypes=[("ZIP files", "*.zip"), ("All files", "*.*")],
             parent=win)
         if path:
             playnite_path_var.set(path)
@@ -358,12 +322,31 @@ def open_settings(app):
             win.after(0, _done)
         threading.Thread(target=_thread, daemon=True).start()
 
-    playnite_btn = tk.Button(pad, text=t("settings_playnite_btn"),
+    playnite_btns_row = tk.Frame(pad, bg=BG)
+    playnite_btns_row.pack(anchor="w", pady=(6, 0))
+    playnite_btn = tk.Button(playnite_btns_row, text=t("settings_playnite_btn"),
                              bg=BG3, fg=TEXT, font=("Courier New", 9, "bold"),
                              relief="flat", padx=12, pady=5, cursor="hand2",
                              activebackground=ACCENT, activeforeground="white")
     playnite_btn.config(command=lambda: _do_playnite_import(playnite_btn))
-    playnite_btn.pack(anchor="w", pady=(6, 0))
+    playnite_btn.pack(side="left")
+
+    def _clear_playnite():
+        app._playnite_owned = set()
+        c = load_cache()
+        c["_playnite_owned"] = []
+        save_cache(c)
+        s = load_settings()
+        s.pop("playnite_game_count", None)
+        save_settings(s)
+        playnite_status_lbl.config(text=t("settings_clear_done"), fg=TEXT_DIM)
+        app._refresh_table()
+
+    tk.Button(playnite_btns_row, text=t("settings_clear_btn"),
+              bg=BG3, fg=RED, font=("Courier New", 9),
+              relief="flat", padx=10, pady=5, cursor="hand2",
+              activebackground=BG3, activeforeground=RED,
+              command=_clear_playnite).pack(side="left", padx=(8, 0))
 
     # ── Language ───────────────────────────────────────────────────────────
     _section_sep(pad)
