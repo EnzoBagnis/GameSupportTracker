@@ -104,8 +104,16 @@ settings_playnite_success:    "✓ {n} jeux importés et sauvegardés."
 settings_playnite_error:      "✗ Échec — vérifiez que vous avez sélectionné un fichier .zip de sauvegarde Playnite."
 settings_playnite_missing:    "⚠ Veuillez sélectionner un fichier d'abord."
 
+settings_history_heading: "Historique des changements"
+settings_history_hint:    "Nombre de vérifications passées à conserver dans l'historique."
+settings_history_label:   "Runs à garder :"
+
 settings_clear_btn:  "✕ Effacer"
 settings_clear_done: "Cache effacé."
+
+changes_history_title: "HISTORIQUE"
+changes_history_empty: "Aucun historique pour l'instant."
+changes_history_count: "{n} changement(s)"
 
 settings_lang_heading: "Langue / Language"
 settings_lang_label:   "Langue de l'interface :"

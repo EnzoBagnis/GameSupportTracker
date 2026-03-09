@@ -400,6 +400,25 @@ def open_settings(app):
     tk.Label(pad, text=t("settings_lang_note"), bg=BG, fg=TEXT_DIM,
              font=("Courier New", 8)).pack(anchor="w", pady=(2, 0))
 
+    # ── Changes history ────────────────────────────────────────────────────
+    _section_sep(pad)
+    tk.Label(pad, text=t("settings_history_heading"), bg=BG, fg=TEXT,
+             font=("Courier New", 9, "bold")).pack(anchor="w")
+    _wrapping_label(pad, t("settings_history_hint"))
+
+    _s_cur = load_settings()
+    history_limit_var = tk.IntVar(value=int(_s_cur.get("history_limit", 10)))
+
+    hist_row = tk.Frame(pad, bg=BG)
+    hist_row.pack(anchor="w", pady=(4, 0))
+    tk.Label(hist_row, text=t("settings_history_label"), bg=BG, fg=TEXT_DIM,
+             font=("Courier New", 8)).pack(side="left")
+    tk.Spinbox(hist_row, from_=1, to=50, textvariable=history_limit_var,
+               width=4, font=("Courier New", 9),
+               bg=BG3, fg=TEXT, buttonbackground=BG3,
+               relief="flat", highlightthickness=1,
+               highlightbackground=BORDER).pack(side="left", padx=(8, 0))
+
     # ── Save / Cancel (fixed footer) ───────────────────────────────────────
     def _save():
         app._github_token   = token_var.get().strip()
@@ -409,8 +428,13 @@ def open_settings(app):
         s["check_releases"]  = app._check_releases
         s["steam_api_key"]   = steam_key_var.get().strip()
         s["steam_ids"]       = steam_ids_txt.get("1.0", "end").strip()
-        s["itch_token"]      = itch_token_var.get().strip()
         s["playnite_path"]   = playnite_path_var.get().strip()
+        try:
+            limit = max(1, min(50, int(history_limit_var.get())))
+        except (ValueError, tk.TclError):
+            limit = 10
+        s["history_limit"] = limit
+        app._history_limit = limit
         sel_name = lang_var.get()
         for code, name in langs.items():
             if name == sel_name:

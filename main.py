@@ -13,7 +13,7 @@ from data import (
     fetch_tab, rows_to_dict, extract_github_repo,
     fetch_github_release, fetch_poptracker_games
 )
-from ui.changes import build_changes_panel, refresh_changes
+from ui.changes import build_changes_panel, refresh_changes, refresh_history
 from ui.table   import build_filter_bar, build_tree, apply_columns, \
                        update_heading_icons, refresh_table
 from ui.detail  import build_detail_panel, update_detail
@@ -39,7 +39,8 @@ class GameSupportTracker(tk.Tk):
             pass
 
         # ── State ─────────────────────────────────────────────────────────
-        self._changes        = []
+        self._changes         = []
+        self._changes_history = []   # list of {"ts": str, "changes": [...]}
         self._all_games      = {}
         self._poptracker_set = set()
         self._releases       = {}
@@ -50,6 +51,7 @@ class GameSupportTracker(tk.Tk):
         _s = load_settings()
         self._github_token   = _s.get("github_token", "")
         self._check_releases = _s.get("check_releases", False)
+        self._history_limit  = int(_s.get("history_limit", 10))
         # Load manual owned list
         self._manual_owned   = set(_s.get("manual_owned", []))
 
@@ -151,7 +153,8 @@ class GameSupportTracker(tk.Tk):
         (self._changes_canvas,
          self._changes_inner,
          self._last_check_lbl,
-         self._toggle_left_btn) = build_changes_panel(left, self)
+         self._hist_inner,
+         self._hist_canvas) = build_changes_panel(left, self)
 
         self._register_scroll(self._changes_canvas, self._scroll_changes)
         self._register_scroll(self._changes_inner,  self._scroll_changes)
@@ -201,13 +204,11 @@ class GameSupportTracker(tk.Tk):
         if str(self._left_panel) in panes:
             self._left_panel_width = self._paned.sash_coord(0)[0]
             self._paned.forget(self._left_panel)
-            self._toggle_left_btn.config(text="▶")
             self._show_left_btn.pack(side="left", padx=(0, 8))
         else:
             self._paned.add(self._left_panel, minsize=0,
                             width=getattr(self, "_left_panel_width", 300),
                             before=self._right_panel)
-            self._toggle_left_btn.config(text="◀")
             self._show_left_btn.pack_forget()
 
     # ── Refresh helpers ────────────────────────────────────────────────────────
@@ -218,6 +219,9 @@ class GameSupportTracker(tk.Tk):
 
     def _refresh_changes(self):
         refresh_changes(self._changes_inner, self._changes,
+                        self._register_scroll, self._scroll_changes)
+        refresh_history(self._hist_inner, self._hist_canvas,
+                        self._changes_history,
                         self._register_scroll, self._scroll_changes)
 
     # ── Edit owned mode ────────────────────────────────────────────────────────
@@ -277,18 +281,21 @@ class GameSupportTracker(tk.Tk):
         apply_columns(self._tree, self._tab_var.get(),
                       self._sort_col, self._sort_asc)
         if cache:
-            self._all_games      = cache
-            self._poptracker_set = set(cache.get("_poptracker", []))
-            self._releases       = cache.get("_releases", {})
-            self._steam_owned    = set(cache.get("_steam_owned", []))
-            self._playnite_owned = set(cache.get("_playnite_owned", []))
+            self._all_games         = cache
+            self._poptracker_set    = set(cache.get("_poptracker", []))
+            self._releases          = cache.get("_releases", {})
+            self._steam_owned       = set(cache.get("_steam_owned", []))
+            self._playnite_owned    = set(cache.get("_playnite_owned", []))
+            self._changes_history   = cache.get("_changes_history", [])
             self._refresh_table()
+            self._refresh_changes()
             ts = cache.get("_timestamp", "")
             if ts:
                 self._last_check_lbl.config(text=t("last_check_label", ts=ts))
             total = sum(len(v) for k, v in cache.items()
                         if k not in ("_timestamp", "_poptracker",
-                                     "_releases", "_steam_owned"))
+                                     "_releases", "_steam_owned",
+                                     "_playnite_owned", "_changes_history"))
             self._set_status(t("status_cache_loaded", total=total, pt=len(self._poptracker_set)))
         else:
             self._set_status(t("status_no_cache"))
@@ -410,19 +417,34 @@ class GameSupportTracker(tk.Tk):
                 self._poptracker_set     = set(cache.get("_poptracker", []))
                 new_cache["_poptracker"] = list(self._poptracker_set)
 
-        # Steam / Playnite — refresh only via ⚙, keep cache
-        self._steam_owned            = set(cache.get("_steam_owned", []))
+        # Steam — refresh only via ⚙, keep cache
+        self._steam_owned         = set(cache.get("_steam_owned", []))
+        new_cache["_steam_owned"] = list(self._steam_owned)
+
+        # Playnite — refresh only via ⚙, keep cache
         self._playnite_owned         = set(cache.get("_playnite_owned", []))
-        new_cache["_steam_owned"]    = list(self._steam_owned)
         new_cache["_playnite_owned"] = list(self._playnite_owned)
 
         new_cache["_releases"] = new_releases
         self._releases         = new_releases
 
+        # ── Changes history (max _history_limit runs) ──────────────────────
+        ts_now = new_cache.get("_timestamp", datetime.now().strftime("%Y-%m-%d %H:%M"))
+        # Serialise change tuples as lists for JSON
+        serialised = [list(c) for c in changes]
+        new_run    = {"ts": ts_now, "changes": serialised}
+        old_history = cache.get("_changes_history", [])
+        limit = getattr(self, "_history_limit", 10)
+        # Prepend newest run; keep only last `limit` runs
+        new_history = [new_run] + [r for r in old_history if r.get("ts") != ts_now]
+        new_history = new_history[:limit]
+        new_cache["_changes_history"] = new_history
+
         if not self._cancel_flag.is_set():
             save_cache(new_cache)
-            self._all_games = new_cache
-            self._changes   = changes
+            self._all_games       = new_cache
+            self._changes         = changes
+            self._changes_history = new_history
         else:
             # Partial: keep old game data but update what we fetched
             for tab_name in TABS.keys():

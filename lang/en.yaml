@@ -104,8 +104,16 @@ settings_playnite_success:    "✓ {n} games imported and saved."
 settings_playnite_error:      "✗ Failed — make sure you selected a Playnite backup .zip file."
 settings_playnite_missing:    "⚠ Please select a file first."
 
+settings_history_heading: "Changes History"
+settings_history_hint:    "Number of past check runs to keep in the history panel."
+settings_history_label:   "Runs to keep:"
+
 settings_clear_btn:  "✕ Clear"
 settings_clear_done: "Cache cleared."
+
+changes_history_title: "CHANGES HISTORY"
+changes_history_empty: "No history yet."
+changes_history_count: "{n} change(s)"
 
 settings_lang_heading: "Langue / Language"
 settings_lang_label:   "Interface language:"
