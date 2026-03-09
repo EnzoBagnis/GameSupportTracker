@@ -84,8 +84,7 @@ Create a token with **ONLY** the `public_repo` at [github.com/settings/tokens](h
 No. The `.exe` is standalone, everything is included.
 
 **The left panel has disappeared, how do I get it back?**
-> ~~Click the ▶ Changes button in the filter bar to show it again.~~
-Feature currently non-functional, redesign in progress...
+> Click the **▶ Changes** button in the filter bar to show it again.
 
 ---
 
@@ -97,24 +96,31 @@ Data comes from the [Archipelago community Google Sheet](https://docs.google.com
 
 ##  Changelog
 
-### Since v1.1
+### Since v1.2 — What's new
 
 ### Additions
-- **License** : License: Added MIT license to the project
+- **Playnite integration**: import your library from a Playnite backup ZIP to populate the *Owned* column
+- **Manual Owned (Edit Owned mode)**: toggle ownership directly in the table — saved across sessions
+- **Change history**: the last N check sessions are stored and displayed in a collapsible *History* section in the left panel (configurable 1–50)
+- **Cancel button**: interrupt a running check at any time; partially fetched data is preserved
+- **"All Games" tab**: unified view that merges all game lists into a single table
+- **MIT License** added to the project
+
 ### Changes
-- Improved game comparison script. Can now **detect** some **acronyms**.
-e.g. Totally Accurate Battle Simulator = TABS
-- **Project name** changed
-now: Game Support Tracker
-previously: Archipelago Game Tracker
+- ⚙ settings button moved next to the title (left side)
+- Settings window: scrollable, resizable, dynamic max height, auto-wrapping labels, adaptive Steam IDs box
+- ▶ Changes button is now functional: toggles the left panel on/off (width is remembered)
+- Changes panel redesigned: collapsible *History* section added at the bottom
+- Acronym detection improved (requires 3+ significant words and 3+ generated characters to avoid false positives)
+- Project renamed from *Archipelago Game Tracker* to *Game Support Tracker*
 
 ---
 
 ## Planned Features
 
 - Done | Add the ability to cancel an update in progress
-- Make the 'latest changes' arrow useful (current utility is very trivial)
-- Add a change history for the last 10 updates
+- Done | Make the 'latest changes' arrow useful (now toggles the left panel)
+- Done | Add a change history for the last 10 updates
 - Done | Move the settings button to the right of the title instead of next to the update button
 - Done | Add Yes/No values to the lang files
 - Done | In the settings page, add automatic line wrapping when text overflows the window
@@ -122,7 +128,7 @@ previously: Archipelago Game Tracker
 - Done | For the settings page, define a maximum default height
 - Done | For the settings page, allow resizing
 - Done | Add the option to enter game owned manually
-- Dectect game from other platform (Itch.io, epic)
+- Detect game from other platform (Itch.io, epic)
 </details>
 
 <details>
@@ -211,8 +217,7 @@ Crée un token avec SEULEMENT le scope `public_repo` sur [github.com/settings/to
 > Non. Le `.exe` est autonome, tout est inclus.
 
 **Le panneau gauche a disparu, comment le retrouver ?**
-> ~~Clique sur le bouton **▶ Changes** dans la barre de filtre pour le réafficher.~~
-Fonctionnalité actuellement inutile, reconception en cours...
+> Clique sur le bouton **▶ Changes** dans la barre de filtre pour le réafficher.
 
 ---
 
@@ -224,24 +229,31 @@ Les données proviennent du [Google Sheets communautaire Archipelago](https://do
 
 ##  Changelog
 
-### Depuis la v1.1
+### Depuis la v1.2 — Nouveautés
 
 ### Ajouts
-- **License** : Ajout de la license MIT au projet
+- **Intégration Playnite** : importe ta bibliothèque depuis un backup Playnite (ZIP) pour remplir la colonne *Owned*
+- **Jeux possédés manuellement (mode Edit Owned)** : coche/décoche tes jeux directement dans le tableau — sauvegardé entre les sessions
+- **Historique des changements** : les N dernières sessions de check sont stockées et affichées dans une section *History* collapsible du panneau gauche (configurable 1–50)
+- **Bouton Annuler** : interrompt un check en cours à tout moment ; les données partiellement récupérées sont conservées
+- **Onglet "All Games"** : vue unifiée qui regroupe tous les tableaux de jeux en un seul
+- **License MIT** ajoutée au projet
+
 ### Modifications
-- Amélioration du script de comparaison de jeu. Peut désormais **détecter** une partie des **acronymes**.
-ex Totally Accurate Battle Simulator = TABS
-- Changement du **nom du projet**
-maintenant : Game Support Tracker
-précedement : Archipelago Game Tracker
+- Bouton ⚙ déplacé à côté du titre (côté gauche)
+- Fenêtre Paramètres : scrollable, redimensionnable, hauteur max dynamique, labels auto-wrap, zone Steam IDs adaptive
+- Bouton **▶ Changes** désormais fonctionnel : affiche/masque le panneau gauche (la largeur est mémorisée)
+- Panneau "Derniers changements" restructuré : section *History* collapsible ajoutée en bas
+- Détection d'acronymes améliorée (3+ mots significatifs et 3+ caractères requis pour éviter les faux positifs)
+- Projet renommé de *Archipelago Game Tracker* en *Game Support Tracker*
 
 ---
 
 ## Ce qui est prévu pour la suite
 
 - Fait | Ajout de la possibilité d'annuler une update en cours de route
-- Rendre la flèche de 'latest changes' utile (utilité actuelle très triviale)
-- Ajout d'un historique des changements pour les 10 dernières updates
+- Fait | Rendre la flèche de 'latest changes' utile (affiche/masque le panneau gauche)
+- Fait | Ajout d'un historique des changements pour les 10 dernières updates
 - Fait | Positionner le bouton paramètre à droite du titre et non collé au bouton update
 - Fait | Rajouter les Yes, No du tableau dans les lang files
 - Fait | Dans la page paramètre, faire des retours à la ligne automatiques lorsque le texte dépasse de la fenêtre

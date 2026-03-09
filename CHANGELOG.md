@@ -4,15 +4,40 @@ Toutes les modifications notables de ce projet sont documentées ici.
 
 ---
 
-## [Unrealesed] -- en dévelopement
-### Ajouts
-- **License** : Ajout de la license MIT au projet
-### Modifications
-- Amélioration du script de comparaison de jeu. Peut désormais **détecter** une partie des **acronymes**.
-ex Totally Accurate Battle Simulator = TABS
-- Changement du **nom du projet**
-maintenant : Game Support Tracker
-précedement : Archipelago Game Tracker
+## [v1.2]
+
+###  Ajouts
+- **Intégration Playnite** : import de bibliothèque depuis un fichier de sauvegarde Playnite (`.zip`)
+  - Détection automatique des jeux possédés via le format LiteDB interne (`library/games.db`)
+  - Guide pas-à-pas intégré dans les paramètres pour créer la sauvegarde
+  - Bouton de navigation pour sélectionner le fichier + bouton de suppression du cache
+- **Jeux possédés manuellement (Edit Owned)** : nouveau mode d'édition dans la barre de filtres
+  - Cocher/décocher directement les jeux dans la colonne *Owned* du tableau
+  - La sélection est persistée dans les paramètres entre les sessions
+- **Historique des changements** : sauvegarde des N dernières sessions de vérification
+  - Section *History* collapsible en bas du panneau gauche
+  - Nombre de sessions conservées configurable (1 à 50) dans les paramètres
+- **Bouton Annuler** : possibilité d'interrompre proprement un check en cours
+  - Les données partiellement récupérées sont conservées dans le cache
+- **Onglet "All Games"** : vue unifiée qui agrège tous les onglets (*Playable Worlds*, *Core Verified*…) dans un seul tableau
+- **License MIT** : ajout de la licence au projet
+- **Fichiers de langue** : ajout des clés `cell_yes` / `cell_no` (Oui/Non) dans les fichiers YAML
+
+###  Modifications
+- **Bouton ⚙ repositionné** : déplacé à côté du titre (à gauche) au lieu d'être collé au bouton de vérification
+- **Fenêtre Paramètres améliorée** :
+  - Scrollable avec hauteur maximale dynamique (75 % de l'écran)
+  - Entièrement redimensionnable
+  - Labels avec retour à la ligne automatique lorsque le texte dépasse la largeur de la fenêtre
+  - Zone de saisie des Steam IDs affichée en entier (hauteur adaptative)
+  - Spinbox pour configurer le nombre de sessions d'historique conservées
+  - Nouvelle section *Playnite* avec guide étape par étape
+- **Bouton ▶ Changes fonctionnel** : masque/affiche le panneau gauche en mémorisant sa largeur
+- **Panneau "Derniers changements" restructuré** : suppression du bouton flèche interne, ajout de la section *History* collapsible en bas du panneau
+- **Détection d'acronymes améliorée** : filtre les mots courts, seuil à 3+ mots significatifs et 3+ caractères générés pour limiter les faux positifs
+  - ex. : *Totally Accurate Battle Simulator* → `TABS`
+- **Renommage du projet** : *Archipelago Game Tracker* → *Game Support Tracker*
+- **`build.py`** : nettoyage des dossiers `__pycache__` avant compilation pour éviter l'inclusion de bytecode obsolète
 
 ## [v1.1]
 
