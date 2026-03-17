@@ -227,7 +227,7 @@ class GameSupportTracker(tk.Tk):
 
     def _refresh_changes(self):
         refresh_changes(self._changes_inner, self._changes,
-                        self._register_scroll, self._scroll_changes)
+                        self._register_scroll, self._scroll_changes, app=self)
         refresh_history(self._hist_inner, self._hist_canvas,
                         self._changes_history,
                         self._register_scroll, self._scroll_changes)
@@ -302,14 +302,10 @@ class GameSupportTracker(tk.Tk):
             ts = cache.get("_timestamp", "")
             if ts:
                 self._last_check_lbl.config(text=t("last_check_label", ts=ts))
-            _skip = {"_timestamp", "_poptracker", "_releases",
-                     "_steam_owned", "_steam_bases",
-                     "_playnite_owned", "_playnite_bases", "_changes_history"}
-            unique_names: set[str] = set()
-            for k, v in cache.items():
-                if k not in _skip and isinstance(v, dict):
-                    unique_names.update(v.keys())
-            total = len(unique_names)
+            total = sum(len(v) for k, v in cache.items()
+                        if k not in ("_timestamp", "_poptracker",
+                                     "_releases", "_steam_owned",
+                                     "_playnite_owned", "_changes_history"))
             self._set_status(t("status_cache_loaded", total=total, pt=len(self._poptracker_set)))
         else:
             self._set_status(t("status_no_cache"))

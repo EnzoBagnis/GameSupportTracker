@@ -103,9 +103,25 @@ def build_changes_panel(parent, app):
     return canvas, inner, last_check_lbl, hist_inner, hist_canvas
 
 
-def _build_change_rows(container, entries, register_scroll_fn, scroll_cb, dim=False):
+def _build_change_rows(container, entries, register_scroll_fn, scroll_cb, dim=False, app=None):
     """Render a list of change entry tuples into `container`."""
     bg = container["bg"]
+
+    owned_set   = getattr(app, "_manual_owned",   set()) if app else set()
+    steam_all   = getattr(app, "_steam_owned",    set()) if app else set()
+    steam_bases = getattr(app, "_steam_bases",    None)  if app else None
+    play_all    = getattr(app, "_playnite_owned", set()) if app else set()
+    play_bases  = getattr(app, "_playnite_bases", None)  if app else None
+
+    def _is_owned(game_name):
+        if game_name in owned_set:
+            return True
+        try:
+            from data import is_owned_on_steam, is_owned_on_playnite
+            return (is_owned_on_steam(game_name, steam_all, steam_bases)
+                    or is_owned_on_playnite(game_name, play_all, play_bases))
+        except Exception:
+            return False
     for entry in entries:
         icon    = entry[0]
         tab     = entry[1]
@@ -122,7 +138,7 @@ def _build_change_rows(container, entries, register_scroll_fn, scroll_cb, dim=Fa
         top_row.pack(fill="x")
         register_scroll_fn(top_row, scroll_cb)
 
-        fg_name = TEXT_DIM if dim else TEXT
+        fg_name = TEXT_DIM if dim else (ACCENT2 if _is_owned(game) else TEXT)
         tk.Label(top_row, text=icon, bg=bg,
                  font=("Segoe UI Emoji", 11)).pack(side="left")
         name_w = _selectable_label(top_row, "  " + game, bg=bg, fg=fg_name,
@@ -153,7 +169,7 @@ def _build_change_rows(container, entries, register_scroll_fn, scroll_cb, dim=Fa
         tk.Frame(container, bg=BORDER, height=1).pack(fill="x", padx=14)
 
 
-def refresh_changes(inner, changes, register_scroll_fn, scroll_cb):
+def refresh_changes(inner, changes, register_scroll_fn, scroll_cb, app=None):
     """Repopulate the current changes inner frame."""
     for w in inner.winfo_children():
         w.destroy()
@@ -164,7 +180,7 @@ def refresh_changes(inner, changes, register_scroll_fn, scroll_cb):
                  padx=14, pady=10).pack(anchor="w")
         return
 
-    _build_change_rows(inner, changes, register_scroll_fn, scroll_cb)
+    _build_change_rows(inner, changes, register_scroll_fn, scroll_cb, app=app)
 
 
 def _run_summary(entries):
@@ -199,11 +215,9 @@ def refresh_history(hist_inner, hist_canvas, history,
         w.destroy()
 
     if not history:
-        lbl = tk.Label(hist_inner, text=t("changes_history_empty"),
-                       bg=BG3, fg=TEXT_DIM, font=("Courier New", 8),
-                       padx=14, pady=8)
-        lbl.pack(anchor="w")
-        lbl.bind("<MouseWheel>", scroll_cb)
+        tk.Label(hist_inner, text=t("changes_history_empty"),
+                 bg=BG3, fg=TEXT_DIM, font=("Courier New", 8),
+                 padx=14, pady=8).pack(anchor="w")
         hist_canvas.configure(scrollregion=hist_canvas.bbox("all") or (0, 0, 1, 1))
         return
 
@@ -212,27 +226,24 @@ def refresh_history(hist_inner, hist_canvas, history,
         entries = run.get("changes", [])
         summary = _run_summary(entries)
 
-        row = tk.Frame(hist_inner, bg=BG3, padx=14, pady=6)
+        row = tk.Frame(hist_inner, bg=BG3, padx=14, pady=5)
         row.pack(fill="x")
-        row.bind("<MouseWheel>", scroll_cb)
         register_scroll_fn(row, scroll_cb)
 
-        # Line 1 — date
-        date_lbl = tk.Label(row, text=ts, bg=BG3, fg=TEXT_DIM,
-                            font=("Courier New", 8, "bold"))
-        date_lbl.pack(anchor="w")
-        date_lbl.bind("<MouseWheel>", scroll_cb)
+        # Date on the left
+        tk.Label(row, text=ts, bg=BG3, fg=TEXT_DIM,
+                 font=("Courier New", 8)).pack(side="left")
 
-        # Line 2 — icons summary, indented
-        icons_text = summary if entries else t("changes_none")
-        icons_lbl = tk.Label(row, text="  " + icons_text,
-                             bg=BG3, fg=TEXT_DIM,
-                             font=("Segoe UI Emoji", 9))
-        icons_lbl.pack(anchor="w")
-        icons_lbl.bind("<MouseWheel>", scroll_cb)
+        # Separator dot
+        tk.Label(row, text="  ·  ", bg=BG3, fg=TEXT_DIM,
+                 font=("Courier New", 8)).pack(side="left")
 
-        sep = tk.Frame(hist_inner, bg=BORDER, height=1)
-        sep.pack(fill="x", padx=8)
-        sep.bind("<MouseWheel>", scroll_cb)
+        # Counters summary
+        summary_lbl = tk.Label(row, text=summary if entries else t("changes_none"),
+                               bg=BG3, fg=TEXT_DIM,
+                               font=("Courier New", 8))
+        summary_lbl.pack(side="left")
+
+        tk.Frame(hist_inner, bg=BORDER, height=1).pack(fill="x", padx=8)
 
     hist_canvas.configure(scrollregion=hist_canvas.bbox("all") or (0, 0, 1, 1))
