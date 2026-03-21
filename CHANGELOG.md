@@ -4,6 +4,44 @@ Toutes les modifications notables de ce projet sont documentées ici.
 
 ---
 
+v1.3 — What's new / Nouveautés
+<details open>
+<summary>En</summary>
+
+### Bug Fixes
+
+  - Status bar game counter : _steam_bases and _playnite_bases were incorrectly included in the game count displayed after loading the cache — now excluded
+  - Context menu not translated : "Copy" and "Copy line" entries in the right-click menu were hardcoded in French regardless of the selected language — now use the translation system
+
+### New
+
+  - Owned games shown first in the changes panel : when changes are detected, games you own (Steam, Playnite, or manually marked) now appear at the top of the Latest Changes list
+
+### Translations
+
+  - col_owned and filter_owned labels are now properly translated in French (Possédé)
+New translation keys added: copy, copy_line (right-click context menu)
+
+</details>
+<details>
+<summary>Fr</summary>
+
+### Corrections de bugs
+
+  - Compteur de jeux dans la barre de statut : _steam_bases et _playnite_bases étaient incorrectement inclus dans le compteur de jeux affiché après le chargement du cache — désormais exclus
+  - Menu contextuel non traduit : les entrées "Copier" et "Copier la ligne" du clic droit étaient codées en dur en français quelle que soit la langue sélectionnée — utilisent maintenant le système de traduction
+
+### Ajout
+
+  - Jeux possédés affichés en premier dans le panneau des changements : lors de la détection de changements, les jeux que vous possédez (Steam, Playnite, ou marqués manuellement) apparaissent maintenant en haut de la liste Derniers changements
+
+### Traductions
+
+  - Les labels col_owned et filter_owned sont maintenant correctement traduits en français (Possédé)
+  - Nouvelles clés de traduction ajoutées : copy, copy_line (menu contextuel clic droit)
+
+</details>
+
 ## [v1.2]
 
 ###  Ajouts
