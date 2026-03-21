@@ -238,10 +238,10 @@ def _on_tree_right_click(event, tree, app):
 
     if cell_val:
         menu.add_command(
-            label=f'Copier "{cell_val[:40]}{"…" if len(cell_val) > 40 else ""}"',
+            label=f'{t("copy")} "{cell_val[:40]}{"…" if len(cell_val) > 40 else ""}"',
             command=lambda: (app.clipboard_clear(), app.clipboard_append(cell_val)))
     menu.add_command(
-        label="Copier la ligne",
+        label=t("copy_line"),
         command=lambda: (app.clipboard_clear(), app.clipboard_append(row_text)))
 
     try:

@@ -24,6 +24,9 @@ col_apworld:    "APWorld / Client"
 col_notes:      "Notes"
 col_owned:      "Owned"
 
+copy:         "Copy"
+copy_line:    "Copy line"
+
 filter_status:  "Status:"
 filter_pt:      "  PopTracker:"
 filter_owned:   "  Owned:"

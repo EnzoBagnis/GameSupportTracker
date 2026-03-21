@@ -74,7 +74,9 @@ def extract_github_repo(notes, apworld=""):
                 repo  = m.group(2)
                 if repo.endswith(".git"):
                     repo = repo[:-4]
-                if "/pull/" in url:
+                from urllib.parse import urlparse
+                parsed = urlparse(url)
+                if "/pull/" in parsed.path:
                     continue
                 return owner, repo
     return None

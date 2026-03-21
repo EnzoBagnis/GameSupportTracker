@@ -303,9 +303,10 @@ class GameSupportTracker(tk.Tk):
             if ts:
                 self._last_check_lbl.config(text=t("last_check_label", ts=ts))
             total = sum(len(v) for k, v in cache.items()
-                        if k not in ("_timestamp", "_poptracker",
-                                     "_releases", "_steam_owned",
-                                     "_playnite_owned", "_changes_history"))
+                        if k not in ("_timestamp", "_poptracker", "_releases",
+                            "_steam_owned", "_steam_bases",
+                            "_playnite_owned", "_playnite_bases",
+                            "_changes_history"))
             self._set_status(t("status_cache_loaded", total=total, pt=len(self._poptracker_set)))
         else:
             self._set_status(t("status_no_cache"))
@@ -485,7 +486,7 @@ class GameSupportTracker(tk.Tk):
             self._set_status(t("status_rate_limited"))
         else:
             n = len(self._changes)
-            self._set_status(t("status_done", n=n, pt=len(self._poptracker_set)))
+            self._set_status(t("status_done", n=n))
 
     # ── Status bar ─────────────────────────────────────────────────────────────
     def _set_status(self, msg):
