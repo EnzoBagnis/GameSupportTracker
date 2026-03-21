@@ -180,6 +180,28 @@ def refresh_changes(inner, changes, register_scroll_fn, scroll_cb, app=None):
                  padx=14, pady=10).pack(anchor="w")
         return
 
+    if app:
+        owned_set   = getattr(app, "_manual_owned",   set())
+        steam_all   = getattr(app, "_steam_owned",    set())
+        steam_bases = getattr(app, "_steam_bases",    None)
+        play_all    = getattr(app, "_playnite_owned", set())
+        play_bases  = getattr(app, "_playnite_bases", None)
+
+        def _is_owned_sort(entry):
+            game_name = entry[2]
+            if game_name in owned_set:
+                return 0
+            try:
+                from data import is_owned_on_steam, is_owned_on_playnite
+                if (is_owned_on_steam(game_name, steam_all, steam_bases)
+                        or is_owned_on_playnite(game_name, play_all, play_bases)):
+                    return 0
+            except Exception:
+                pass
+            return 1
+
+        changes = sorted(changes, key=_is_owned_sort)
+
     _build_change_rows(inner, changes, register_scroll_fn, scroll_cb, app=app)
 
 

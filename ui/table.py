@@ -177,6 +177,29 @@ def build_tree(parent, app):
 
     return tree
 
+def _on_tree_click(event, tree, app):
+    """Handle clicks in edit-owned mode to toggle ownership."""
+    if not app._edit_owned_mode:
+        return
+    region = tree.identify_region(event.x, event.y)
+    if region != "cell":
+        return
+    col = tree.identify_column(event.x)
+    if col != "#5":  # owned column
+        return
+    row_id = tree.identify_row(event.y)
+    if not row_id:
+        return
+    values = tree.item(row_id, "values")
+    if not values:
+        return
+    game_name = values[0]
+    app.toggle_manual_owned(game_name)
+    # Update the cell display immediately
+    is_owned = game_name in app._manual_owned
+    new_values = list(values)
+    new_values[4] = "☑" if is_owned else "☐"
+    tree.item(row_id, values=new_values)
 
 def _copy_tree_selection(tree, app):
     """Copy selected row(s) game name(s) to clipboard (Ctrl+C)."""
@@ -225,31 +248,6 @@ def _on_tree_right_click(event, tree, app):
         menu.tk_popup(event.x_root, event.y_root)
     finally:
         menu.grab_release()
-
-
-
-    """Handle clicks in edit-owned mode to toggle ownership."""
-    if not app._edit_owned_mode:
-        return
-    region = tree.identify_region(event.x, event.y)
-    if region != "cell":
-        return
-    col = tree.identify_column(event.x)
-    if col != "#5":  # owned column
-        return
-    row_id = tree.identify_row(event.y)
-    if not row_id:
-        return
-    values = tree.item(row_id, "values")
-    if not values:
-        return
-    game_name = values[0]
-    app.toggle_manual_owned(game_name)
-    # Update the cell display immediately
-    is_owned = game_name in app._manual_owned
-    new_values = list(values)
-    new_values[4] = "☑" if is_owned else "☐"
-    tree.item(row_id, values=new_values)
 
 
 def apply_columns(tree, tab, sort_col, sort_asc):
