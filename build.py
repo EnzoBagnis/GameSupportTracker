@@ -87,6 +87,13 @@ def build():
     if os.path.isdir(ui_dir):
         cmd += ["--add-data", f"{ui_dir};ui"]
         print(" UI : dossier 'ui' inclus dans l'exécutable.")
+        
+    aliases_path = os.path.join(script_dir, "aliases.xlsx")
+    if os.path.exists(aliases_path):
+        cmd += ["--add-data", f"{aliases_path};."]
+        print(" aliases.xlsx inclus dans l'exécutable.")
+    else:
+        print("!!  aliases.xlsx non trouvé — aliases non inclus.")
 
     if os.path.exists(icon_path):
         cmd += ["--icon", icon_path]

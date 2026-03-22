@@ -60,6 +60,14 @@ class GameSupportTracker(tk.Tk):
 
         # Load alias table if configured
         _alias_path = _s.get("alias_path", "")
+        if not _alias_path:
+            # Fallback : aliases.xlsx bundled in the executable
+            if getattr(sys, "frozen", False):
+                _bundled = os.path.join(sys._MEIPASS, "aliases.xlsx")
+            else:
+                _bundled = os.path.join(os.path.dirname(__file__), "aliases.xlsx")
+            if os.path.exists(_bundled):
+                _alias_path = _bundled
         if _alias_path:
             load_alias_table(_alias_path)
 
