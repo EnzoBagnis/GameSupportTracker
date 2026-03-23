@@ -193,14 +193,14 @@ def _normalize_steam(name: str) -> set[str]:
         variants.add(explicit)
 
     # Generated acronym — only for names with 3+ significant words
-    STOP  = {"a", "an", "the", "of", "vs", "vs.", "and", "&", "in", "on",
-             "at", "to", "for", "is", "be"}
-    words = [w for w in re.sub(r"[^a-zA-Z0-9 ]", " ", clean).split()
-             if w.lower() not in STOP and w[0].isalpha()]
-    if len(words) >= 3:
-        acronym = "".join(w[0] for w in words).lower()
-        if len(acronym) >= 3:
-            variants.add(acronym)
+    #STOP  = {"a", "an", "the", "of", "vs", "vs.", "and", "&", "in", "on",
+    #         "at", "to", "for", "is", "be"}
+    #words = [w for w in re.sub(r"[^a-zA-Z0-9 ]", " ", clean).split()
+    #         if w.lower() not in STOP and w[0].isalpha()]
+    #if len(words) >= 3:
+    #    acronym = "".join(w[0] for w in words).lower()
+    #    if len(acronym) >= 3:
+    #        variants.add(acronym)
 
     return variants
 
