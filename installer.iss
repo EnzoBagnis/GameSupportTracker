@@ -1,12 +1,12 @@
 ; ============================================================================
-; Inno Setup Script pour Game Support Tracker
+; Inno Setup Script for Game Support Tracker
 ; ============================================================================
-; Prérequis : Installer Inno Setup depuis https://jrsoftware.org/isinfo.php
+; Prerequisites: Install Inno Setup from https://jrsoftware.org/isinfo.php
 ;
-; Pour compiler l'installeur :
-;   1. Ouvrir ce fichier dans Inno Setup Compiler
-;   2. Cliquer sur "Compile" (Ctrl+F9)
-;   OU en ligne de commande :
+; To compile the installer:
+;   1. Open this file in Inno Setup Compiler
+;   2. Click "Compile" (Ctrl+F9)
+;   OR via command line:
 ;      "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
 ; ============================================================================
 
@@ -17,7 +17,7 @@
 #define MyAppURL "https://github.com/EnzoB/GameSupportTracker"
 
 [Setup]
-; Identifiant unique de l'application (ne pas changer après la première publication)
+; Unique application identifier (do not change after first release)
 AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
@@ -25,46 +25,45 @@ AppPublisher={#MyAppPublisher}
 AppSupportURL={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
-; Pas de page de sélection de dossier programme si inutile
+; No program folder selection page if unnecessary
 AllowNoIcons=yes
-; Dossier de sortie de l'installeur
+; Installer output folder
 OutputDir=dist
 OutputBaseFilename=GameSupportTrackerSetup
-; Icône de l'installeur
+; Installer icon
 SetupIconFile=logo.ico
-; Compression maximale
+; Maximum compression
 Compression=lzma2/ultra64
 SolidCompression=yes
-; Style moderne
+; Modern style
 WizardStyle=modern
-; Privilèges : installation possible sans admin (dans AppData)
+; Privileges: installation possible without admin (in AppData)
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
-; Infos de désinstallation
+; Uninstall info
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName}
-; Version minimale de Windows
+; Minimum Windows version
 MinVersion=10.0
 
 [Languages]
-Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
+Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-; L'exécutable principal
+; Main executable
 Source: "dist\main.exe"; DestDir: "{app}"; DestName: "{#MyAppExeName}"; Flags: ignoreversion
 
-; Icône (décommenter si logo.ico existe)
+; Icon (uncomment if logo.ico exists)
 ; Source: "logo.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{group}\Désinstaller {#MyAppName}"; Filename: "{uninstallexe}"
+Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Lancer {#MyAppName}"; Flags: nowait postinstall skipifsilent
-
+Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
