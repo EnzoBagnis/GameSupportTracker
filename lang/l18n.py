@@ -133,10 +133,10 @@ def _init():
     try:
         code = load_settings().get("lang", "fr")
     except Exception:
-        code = "fr"
+        code = "en"
     path = _locale_path(code)
     if not os.path.exists(path):
-        code = "fr"
+        code = "en"
     try:
         set_lang(code)
     except Exception:

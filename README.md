@@ -96,34 +96,13 @@ Data comes from the [Archipelago community Google Sheet](https://docs.google.com
 
 ##  Changelog
 
-### Since v1.2 — What's new
+### Since v1.3
 
 ### Bug Fixes
 
-  - Status bar game counter : _steam_bases and _playnite_bases were incorrectly included in the game count displayed after loading the cache — now excluded
-
 ### Additions
-- **Playnite integration**: import your library from a Playnite backup ZIP to populate the *Owned* column
-- **Manual Owned (Edit Owned mode)**: toggle ownership directly in the table — saved across sessions
-- **Change history**: the last N check sessions are stored and displayed in a collapsible *History* section in the left panel (configurable 1–50)
-- **Owned games shown first in the changes panel**: when changes are detected, games you own (Steam, Playnite, or manually marked) now appear at the top of the Latest Changes list
-- **Cancel button**: interrupt a running check at any time; partially fetched data is preserved
-- **"All Games" tab**: unified view that merges all game lists into a single table
-- **Acronyms detection**: add a excel file that contain all acronyms for the registered games
-
-- **MIT License** added to the project
 
 ### Changes
-- Remove the old system to detect acronyms, it wasn't really working
-- ⚙ settings button moved next to the title (left side)
-- Settings window: scrollable, resizable, dynamic max height, auto-wrapping labels, adaptive Steam IDs box
-- ▶ Changes button is now functional: toggles the left panel on/off (width is remembered)
-- Changes panel redesigned: collapsible *History* section added at the bottom
-- Acronym detection improved (requires 3+ significant words and 3+ generated characters to avoid false positives)
-- Project renamed from *Archipelago Game Tracker* to *Game Support Tracker*
-
-- col_owned and filter_owned labels are now properly translated in French (Possédé)
-New translation keys added: copy, copy_line (right-click context menu)
 
 ---
 
@@ -230,35 +209,13 @@ Les données proviennent du [Google Sheets communautaire Archipelago](https://do
 
 ##  Changelog
 
-### Depuis la v1.2 — Nouveautés
-
+### Depuis la v1.3 — Nouveautés
 
 ### Corrections de bugs
 
-  - Compteur de jeux dans la barre de statut : _steam_bases et _playnite_bases étaient incorrectement inclus dans le compteur de jeux affiché après le chargement du cache — désormais exclus
-
 ### Ajouts
-- **Intégration Playnite** : importe ta bibliothèque depuis un backup Playnite (ZIP) pour remplir la colonne *Owned*
-- **Jeux possédés manuellement (mode Edit Owned)** : coche/décoche tes jeux directement dans le tableau — sauvegardé entre les sessions
-- **Historique des changements** : les N dernières sessions de check sont stockées et affichées dans une section *History* collapsible du panneau gauche (configurable 1–50)
-- **Jeux possédés affichés en premier dans le panneau des changements**: lors de la détection de changements, les jeux que vous possédez (Steam, Playnite, ou marqués manuellement) apparaissent maintenant en haut de la liste Derniers changements
-- **Bouton Annuler**: interrompt un check en cours à tout moment ; les données partiellement récupérées sont conservées
-- **Onglet "All Games"**: vue unifiée qui regroupe tous les tableaux de jeux en un seul
-- **Détection d'acronymes**: Ajout d'un fichier excel contenant les acronyms et nom alternatif des jeux enregistré
-
-- **License MIT** ajoutée au projet
 
 ### Modifications
-- Suppression de l'ancien système de détection d'acronymes, qui ne marchait pas si bien
-- Bouton ⚙ déplacé à côté du titre (côté gauche)
-- Fenêtre Paramètres : scrollable, redimensionnable, hauteur max dynamique, labels auto-wrap, zone Steam IDs adaptive
-- Bouton **▶ Changes** désormais fonctionnel : affiche/masque le panneau gauche (la largeur est mémorisée)
-- Panneau "Derniers changements" restructuré : section *History* collapsible ajoutée en bas
-- Détection d'acronymes améliorée (3+ mots significatifs et 3+ caractères requis pour éviter les faux positifs)
-- Projet renommé de *Archipelago Game Tracker* en *Game Support Tracker*
-- Les labels col_owned et filter_owned sont maintenant correctement traduits en français (Possédé)
-
-- Nouvelles clés de traduction ajoutées : copy, copy_line (menu contextuel clic droit)
 
 ---
 

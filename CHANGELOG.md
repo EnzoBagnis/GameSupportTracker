@@ -4,7 +4,7 @@ Toutes les modifications notables de ce projet sont documentées ici.
 
 ---
 
-v1.3 — What's new / Nouveautés
+## [v1.3]
 <details open>
 <summary>En</summary>
 
@@ -26,6 +26,7 @@ New translation keys added: copy, copy_line (right-click context menu)
 <details>
 <summary>Fr</summary>
 
+## [v1.3]
 ### Corrections de bugs
 
   - Compteur de jeux dans la barre de statut : _steam_bases et _playnite_bases étaient incorrectement inclus dans le compteur de jeux affiché après le chargement du cache — désormais exclus
