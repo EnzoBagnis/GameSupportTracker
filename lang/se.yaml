@@ -70,7 +70,7 @@ settings_cancel:  "Avbryt"
 settings_github_check_label: "Kolla GitHub releases vid uppdatering"
 settings_github_check_hint:  "Gör en GitHub API call per spel (~400 begärningar). Avstängd som standard. Rekommendation: endast aktiv med en token konfigurerads nedan."
 settings_github_token_label: "GitHub Personal Access Token"
-settings_github_token_hint:  "Krävs för att nå GitHub API's 60 req/h begränsning. Scope behövs: 'public_repo' (read-only is sufficient)."
+settings_github_token_hint:  "Krävs för att nå GitHub API's 60 req/h begränsning. Scope som behövs: 'public_repo' (read-only är tillräckligt)."
 settings_github_show:        "Visa"
 settings_github_token_link:  "→ Skapa en token på github.com/settings/tokens"
 
