@@ -24,6 +24,9 @@ col_apworld:    "APWorld / Klient"
 col_notes:      "Anteckningar"
 col_owned:      "Äger"
 
+copy:         "Kopiera"
+copy_line:    "Kopiera raden"
+
 filter_status:  "Status:"
 filter_pt:      "  PopTracker:"
 filter_owned:   "  Äger:"
